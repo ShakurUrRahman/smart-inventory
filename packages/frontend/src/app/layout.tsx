@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
 	title: "Smart Inventory",
@@ -13,7 +15,10 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en">
-			<body>{children}</body>
+			<body>
+				<Providers>{children}</Providers>
+				<Toaster position="top-right" />
+			</body>
 		</html>
 	);
 }

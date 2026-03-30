@@ -1,34 +1,45 @@
-// middleware.ts  (place at project root, same level as app/)
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-	const token = request.cookies.get("token")?.value;
 	const { pathname } = request.nextUrl;
 
-	const isAuthPage =
-		pathname === "/login" ||
-		pathname === "/register" ||
-		pathname.startsWith("/login/") ||
-		pathname.startsWith("/register/");
+	// Get token from cookies
+	const token = request.cookies.get("token")?.value;
 
-	const isDashboardPage = pathname.startsWith("/dashboard");
+	// Check if user is trying to access protected routes
+	const isProtectedRoute = pathname.startsWith("/dashboard");
+	const isAuthRoute =
+		pathname.startsWith("/login") || pathname.startsWith("/register");
+	const isAuthApiRoute = pathname.startsWith("/api/auth");
 
-	// Unauthenticated user trying to access dashboard
-	if (isDashboardPage && !token) {
-		const loginUrl = new URL("/login", request.url);
-		loginUrl.searchParams.set("from", pathname); // preserve original destination
-		return NextResponse.redirect(loginUrl);
+	// Allow API auth routes to pass through
+	if (isAuthApiRoute) {
+		return NextResponse.next();
 	}
 
-	// Authenticated user trying to access login/register
-	if (isAuthPage && token) {
+	// If user has token and tries to access auth routes, redirect to dashboard
+	if (token && isAuthRoute) {
 		return NextResponse.redirect(new URL("/dashboard", request.url));
 	}
 
+	// If user doesn't have token and tries to access protected routes, redirect to login
+	if (!token && isProtectedRoute) {
+		return NextResponse.redirect(new URL("/login", request.url));
+	}
+
+	// Allow the request to proceed
 	return NextResponse.next();
 }
 
+// Configure which routes to run middleware on
 export const config = {
-	matcher: ["/dashboard/:path*", "/login", "/register"],
+	matcher: [
+		/*
+		 * Match all request paths except for the ones starting with:
+		 * - _next/static (static files)
+		 * - _next/image (image optimization files)
+		 * - favicon.ico (favicon file)
+		 */
+		"/((?!_next/static|_next/image|favicon.ico).*)",
+	],
 };

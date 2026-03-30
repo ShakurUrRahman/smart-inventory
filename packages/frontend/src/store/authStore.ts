@@ -1,25 +1,65 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import apiClient from "@/lib/api";
 
-export interface UserType {
+export interface User {
 	id: string;
 	name: string;
 	email: string;
-	role: "admin" | "manager" | "viewer" | string;
+	role: "admin" | "manager";
 	createdAt?: string;
 }
 
-interface AuthState {
-	user: UserType | null;
+interface AuthStore {
+	user: User | null;
 	isLoading: boolean;
-	setUser: (user: UserType) => void;
+	isHydrated: boolean;
+	setUser: (user: User) => void;
 	clearUser: () => void;
-	setLoading: (loading: boolean) => void;
+	setIsLoading: (loading: boolean) => void;
+	setIsHydrated: (hydrated: boolean) => void;
+	rehydrateUser: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-	user: null,
-	isLoading: false,
-	setUser: (user) => set({ user }),
-	clearUser: () => set({ user: null }),
-	setLoading: (loading) => set({ isLoading: loading }),
-}));
+export const useAuthStore = create<AuthStore>()(
+	persist(
+		(set) => ({
+			user: null,
+			isLoading: false,
+			isHydrated: false,
+
+			setUser: (user: User) => set({ user }),
+
+			clearUser: () => set({ user: null }),
+
+			setIsLoading: (loading: boolean) => set({ isLoading: loading }),
+
+			setIsHydrated: (hydrated: boolean) => set({ isHydrated: hydrated }),
+
+			rehydrateUser: async () => {
+				try {
+					set({ isLoading: true });
+					const response = await apiClient.get("/auth/me");
+
+					if (response.data.success && response.data.user) {
+						set({
+							user: response.data.user,
+							isLoading: false,
+							isHydrated: true,
+						});
+					} else {
+						set({ user: null, isLoading: false, isHydrated: true });
+					}
+				} catch (error) {
+					// Silently fail - user is not authenticated
+					console.log("User not authenticated");
+					set({ user: null, isLoading: false, isHydrated: true });
+				}
+			},
+		}),
+		{
+			name: "auth-store",
+			partialize: (state) => ({ user: state.user }),
+		},
+	),
+);
