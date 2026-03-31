@@ -1,51 +1,97 @@
-// lib/authApi.ts
+import apiClient from "./api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+export interface LoginResponse {
+	success: boolean;
+	message: string;
+	token: string;
+	user: {
+		id: string;
+		name: string;
+		email: string;
+		role: "admin" | "manager";
+	};
+}
 
-async function handleResponse<T>(res: Response): Promise<T> {
-	const data = await res.json();
-	if (!res.ok) {
-		throw new Error(data.message || "Something went wrong");
+export interface RegisterResponse {
+	success: boolean;
+	message: string;
+	user: {
+		id: string;
+		name: string;
+		email: string;
+		role: "admin" | "manager";
+	};
+}
+
+export const loginUser = async (
+	email: string,
+	password: string,
+): Promise<LoginResponse> => {
+	try {
+		const response = await apiClient.post<LoginResponse>("/auth/login", {
+			email,
+			password,
+		});
+
+		if (!response.data.success) {
+			throw new Error(response.data.message || "Login failed");
+		}
+
+		return response.data;
+	} catch (error: any) {
+		throw new Error(
+			error.response?.data?.message || error.message || "Login failed",
+		);
 	}
-	return data as T;
-}
+};
 
-export async function loginUser(email: string, password: string) {
-	const res = await fetch(`${API_URL}/api/auth/login`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		credentials: "include", // sends/receives cookies
-		body: JSON.stringify({ email, password }),
-	});
-	return handleResponse<{ success: boolean; token: string; user: any }>(res);
-}
-
-export async function registerUser(
+export const registerUser = async (
 	name: string,
 	email: string,
 	password: string,
-) {
-	const res = await fetch(`${API_URL}/api/auth/register`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		credentials: "include",
-		body: JSON.stringify({ name, email, password }),
-	});
-	return handleResponse<{ success: boolean; user: any }>(res);
-}
+): Promise<RegisterResponse> => {
+	try {
+		const response = await apiClient.post<RegisterResponse>(
+			"/auth/register",
+			{
+				name,
+				email,
+				password,
+			},
+		);
 
-export async function logoutUser() {
-	const res = await fetch(`${API_URL}/api/auth/logout`, {
-		method: "POST",
-		credentials: "include",
-	});
-	return handleResponse<{ success: boolean }>(res);
-}
+		if (!response.data.success) {
+			throw new Error(response.data.message || "Registration failed");
+		}
 
-export async function getMe() {
-	const res = await fetch(`${API_URL}/api/auth/me`, {
-		credentials: "include",
-	});
-	if (!res.ok) return null;
-	return res.json() as Promise<{ success: boolean; user: any } | null>;
-}
+		return response.data;
+	} catch (error: any) {
+		throw new Error(
+			error.response?.data?.message ||
+				error.message ||
+				"Registration failed",
+		);
+	}
+};
+
+export const logoutUser = async (): Promise<void> => {
+	try {
+		await apiClient.post("/auth/logout");
+	} catch (error: any) {
+		throw new Error(error.response?.data?.message || "Logout failed");
+	}
+};
+
+export const getCurrentUser = async () => {
+	try {
+		const response = await apiClient.get("/auth/me");
+		if (!response.data.success) {
+			throw new Error("Failed to fetch user");
+		}
+		return response.data.user;
+	} catch (error: any) {
+		throw new Error(
+			error.response?.data?.message || "Failed to fetch user",
+		);
+	}
+};

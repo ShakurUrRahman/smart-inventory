@@ -5,20 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { z } from "zod";
 import { motion } from "framer-motion";
-import toast from "react-hot-toast";
-import apiClient from "@/lib/api";
+import { Loader2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import { registerUser } from "@/lib/authApi";
 
-// Zod schema with password matching
 const registerSchema = z
 	.object({
 		name: z.string().min(2, "Name must be at least 2 characters"),
-		email: z.string().email("Invalid email address"),
+		email: z.string().email("Please enter a valid email address"),
 		password: z.string().min(6, "Password must be at least 6 characters"),
 		confirmPassword: z.string(),
 	})
@@ -31,195 +30,246 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
 	const router = useRouter();
-	const [isLoading, setIsLoading] = useState(false);
+	const [serverError, setServerError] = useState<string | null>(null);
 
 	const {
 		register,
 		handleSubmit,
-		formState: { errors },
+		formState: { errors, isSubmitting },
 	} = useForm<RegisterFormData>({
 		resolver: zodResolver(registerSchema),
 	});
 
 	const onSubmit = async (data: RegisterFormData) => {
-		setIsLoading(true);
 		try {
-			const response = await apiClient.post("/auth/register", {
-				name: data.name,
-				email: data.email,
-				password: data.password,
-			});
-
-			if (response.data.success) {
-				toast.success("Account created! Please sign in.");
-				router.push("/login");
-			}
-		} catch (error: any) {
-			toast.error(error.response?.data?.message || "Registration failed");
-		} finally {
-			setIsLoading(false);
+			setServerError(null);
+			await registerUser(data.name, data.email, data.password);
+			toast.success("Account created! Please sign in.");
+			router.push("/login");
+		} catch (err: any) {
+			const errorMsg =
+				err.message || "Registration failed. Please try again.";
+			setServerError(errorMsg);
+			toast.error(errorMsg);
 		}
 	};
 
 	return (
-		<div className="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
-			{/* LEFT PANEL - Hidden on mobile */}
-			<motion.div
-				initial={{ opacity: 0, x: -20 }}
-				animate={{ opacity: 1, x: 0 }}
-				transition={{ duration: 0.5 }}
-				className="hidden md:flex flex-col justify-center items-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 rounded-2xl p-12 text-white"
-			>
-				<div className="text-6xl mb-6">📦</div>
-				<h1 className="text-4xl font-bold mb-4 text-center">
-					InventoryOS
-				</h1>
-				<p className="text-xl text-indigo-100 text-center">
-					Smart stock. Smarter decisions.
-				</p>
-			</motion.div>
+		<div className="w-full max-w-5xl flex rounded-2xl overflow-hidden shadow-2xl shadow-black/60 border border-white/5">
+			{/* ── LEFT PANEL ── */}
+			<div className="hidden sm:flex flex-col justify-between w-[45%] bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 p-10 relative overflow-hidden">
+				{/* Dot grid */}
+				<div
+					className="absolute inset-0 opacity-[0.12]"
+					style={{
+						backgroundImage: `radial-gradient(circle at 1px 1px, white 1.5px, transparent 0)`,
+						backgroundSize: "36px 36px",
+					}}
+				/>
+				<div className="absolute -bottom-20 -right-20 w-72 h-72 bg-violet-400/30 rounded-full blur-3xl" />
+				<div className="absolute -top-10 -left-10 w-48 h-48 bg-indigo-300/20 rounded-full blur-2xl" />
 
-			{/* RIGHT PANEL - Register Form */}
+				<div className="relative z-10">
+					<div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-5 border border-white/30">
+						<Package className="text-white w-6 h-6" />
+					</div>
+					<h1 className="text-white text-3xl font-bold tracking-tight">
+						InventoryOS
+					</h1>
+					<p className="text-indigo-200/80 text-sm mt-1 font-medium tracking-wide uppercase">
+						Smart Inventory Platform
+					</p>
+				</div>
+
+				<div className="relative z-10 space-y-6">
+					<div>
+						<p className="text-white text-xl font-semibold leading-snug">
+							Smart stock.
+							<br />
+							Smarter decisions.
+						</p>
+						<p className="text-indigo-100/70 text-sm mt-3 leading-relaxed">
+							Join thousands of businesses managing their
+							inventory smarter with InventoryOS.
+						</p>
+					</div>
+
+					<div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+						<p className="text-white/90 text-sm font-medium">
+							&ldquo;InventoryOS cut our overstock by 40% in the
+							first month.&rdquo;
+						</p>
+						<p className="text-indigo-200/70 text-xs mt-2">
+							— Operations Manager, RetailCo
+						</p>
+					</div>
+				</div>
+			</div>
+
+			{/* ── RIGHT PANEL ── */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4, delay: 0.1 }}
-				className="flex justify-center items-center"
+				transition={{ duration: 0.4, ease: "easeOut" }}
+				className="flex-1 bg-[#13151C] flex items-center justify-center p-8 sm:p-12"
 			>
-				<Card className="w-full max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-8 shadow-2xl">
+				<div className="w-full max-w-sm">
+					{/* Mobile logo */}
+					<div className="flex items-center gap-2 mb-8 sm:hidden">
+						<Package className="text-indigo-400 w-5 h-5" />
+						<span className="text-white font-bold">
+							InventoryOS
+						</span>
+					</div>
+
 					<div className="mb-8">
-						<h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-							Create account
+						<h2 className="text-white text-2xl font-bold tracking-tight">
+							Create an account
 						</h2>
-						<p className="text-slate-600 dark:text-slate-400">
-							Join InventoryOS today
+						<p className="text-zinc-400 text-sm mt-1.5">
+							Get started with InventoryOS for free
 						</p>
 					</div>
 
 					<form
 						onSubmit={handleSubmit(onSubmit)}
-						className="space-y-5"
+						className="space-y-4"
 					>
-						{/* Full Name Field */}
-						<div className="space-y-2">
+						{/* Full Name */}
+						<div className="space-y-1.5">
 							<Label
 								htmlFor="name"
-								className="text-slate-700 dark:text-slate-300"
+								className="text-zinc-300 text-sm font-medium"
 							>
 								Full Name
 							</Label>
 							<Input
 								id="name"
 								type="text"
+								autoComplete="name"
 								placeholder="John Doe"
-								className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
+								className="bg-[#1C1F2A] border-zinc-700/60 text-white placeholder:text-zinc-600 
+                           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 
+                           h-10 transition-colors"
 								{...register("name")}
-								disabled={isLoading}
 							/>
 							{errors.name && (
-								<p className="text-red-500 text-sm mt-1">
+								<p className="text-red-400 text-xs">
 									{errors.name.message}
 								</p>
 							)}
 						</div>
 
-						{/* Email Field */}
-						<div className="space-y-2">
+						{/* Email */}
+						<div className="space-y-1.5">
 							<Label
 								htmlFor="email"
-								className="text-slate-700 dark:text-slate-300"
+								className="text-zinc-300 text-sm font-medium"
 							>
-								Email
+								Email address
 							</Label>
 							<Input
 								id="email"
 								type="email"
-								placeholder="you@example.com"
-								className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
+								autoComplete="email"
+								placeholder="you@company.com"
+								className="bg-[#1C1F2A] border-zinc-700/60 text-white placeholder:text-zinc-600 
+                           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 
+                           h-10 transition-colors"
 								{...register("email")}
-								disabled={isLoading}
 							/>
 							{errors.email && (
-								<p className="text-red-500 text-sm mt-1">
+								<p className="text-red-400 text-xs">
 									{errors.email.message}
 								</p>
 							)}
 						</div>
 
-						{/* Password Field */}
-						<div className="space-y-2">
+						{/* Password */}
+						<div className="space-y-1.5">
 							<Label
 								htmlFor="password"
-								className="text-slate-700 dark:text-slate-300"
+								className="text-zinc-300 text-sm font-medium"
 							>
 								Password
 							</Label>
 							<Input
 								id="password"
 								type="password"
-								placeholder="••••••••"
-								className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
+								autoComplete="new-password"
+								placeholder="Min. 6 characters"
+								className="bg-[#1C1F2A] border-zinc-700/60 text-white placeholder:text-zinc-600 
+                           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 
+                           h-10 transition-colors"
 								{...register("password")}
-								disabled={isLoading}
 							/>
 							{errors.password && (
-								<p className="text-red-500 text-sm mt-1">
+								<p className="text-red-400 text-xs">
 									{errors.password.message}
 								</p>
 							)}
 						</div>
 
-						{/* Confirm Password Field */}
-						<div className="space-y-2">
+						{/* Confirm Password */}
+						<div className="space-y-1.5">
 							<Label
 								htmlFor="confirmPassword"
-								className="text-slate-700 dark:text-slate-300"
+								className="text-zinc-300 text-sm font-medium"
 							>
 								Confirm Password
 							</Label>
 							<Input
 								id="confirmPassword"
 								type="password"
+								autoComplete="new-password"
 								placeholder="••••••••"
-								className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
+								className="bg-[#1C1F2A] border-zinc-700/60 text-white placeholder:text-zinc-600 
+                           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 
+                           h-10 transition-colors"
 								{...register("confirmPassword")}
-								disabled={isLoading}
 							/>
 							{errors.confirmPassword && (
-								<p className="text-red-500 text-sm mt-1">
+								<p className="text-red-400 text-xs">
 									{errors.confirmPassword.message}
 								</p>
 							)}
 						</div>
 
-						{/* Sign Up Button */}
+						{/* Server error */}
+						{serverError && (
+							<div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3.5 py-2.5">
+								{serverError}
+							</div>
+						)}
+
+						{/* Submit */}
 						<Button
 							type="submit"
-							className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg transition-colors"
-							disabled={isLoading}
+							disabled={isSubmitting}
+							className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 
+                         text-white font-medium h-10 transition-colors mt-2"
 						>
-							{isLoading ? (
-								<div className="flex items-center gap-2">
-									<div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+							{isSubmitting ? (
+								<>
+									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
 									Creating account...
-								</div>
+								</>
 							) : (
 								"Create Account"
 							)}
 						</Button>
 					</form>
 
-					{/* Login Link */}
-					<p className="text-center text-slate-600 dark:text-slate-400 mt-6">
+					<p className="text-center text-zinc-500 text-sm mt-6">
 						Already have an account?{" "}
 						<Link
 							href="/login"
-							className="text-indigo-500 hover:text-indigo-600 font-semibold"
+							className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
 						>
 							Sign in
 						</Link>
 					</p>
-				</Card>
+				</div>
 			</motion.div>
 		</div>
 	);
