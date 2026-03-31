@@ -3,9 +3,16 @@ import { Types } from "mongoose";
 
 interface LogActivityParams {
 	action: string;
-	entityType: "Order" | "Product" | "Stock" | "User" | "Category";
+	entityType:
+		| "Order"
+		| "Product"
+		| "Stock"
+		| "User"
+		| "Category"
+		| "RestockQueue";
 	entityId?: Types.ObjectId | string;
 	userId?: Types.ObjectId | string;
+	description?: string;
 }
 
 /**
@@ -21,6 +28,7 @@ export const logActivity = async ({
 	entityType,
 	entityId,
 	userId,
+	description, // ← destructure it
 }: LogActivityParams): Promise<void> => {
 	try {
 		const activityData: Partial<IActivityLog> = {
@@ -28,18 +36,18 @@ export const logActivity = async ({
 			entityType,
 		};
 
-		// Add optional fields if provided
 		if (entityId) {
 			activityData.entityId = new Types.ObjectId(entityId);
 		}
 		if (userId) {
 			activityData.performedBy = new Types.ObjectId(userId);
 		}
+		if (description) {
+			activityData.description = description; // ← save it
+		}
 
-		// Create activity log document
 		await ActivityLog.create(activityData);
 	} catch (error) {
-		// Silently fail - logging errors should not break the main application
 		console.error("Activity logging failed:", error);
 	}
 };
@@ -63,6 +71,9 @@ export const logActivitiesBatch = async (
 			}
 			if (activity.userId) {
 				data.performedBy = new Types.ObjectId(activity.userId);
+			}
+			if (activity.description) {
+				data.description = activity.description; // ← add this
 			}
 
 			return data;

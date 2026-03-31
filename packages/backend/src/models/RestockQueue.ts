@@ -1,10 +1,8 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-// TypeScript Interface
 export interface IRestockQueue extends Document {
 	product: Types.ObjectId;
 	currentStock: number;
-	threshold: number;
 	priority: "High" | "Medium" | "Low";
 	isResolved: boolean;
 	resolvedAt: Date | null;
@@ -12,7 +10,6 @@ export interface IRestockQueue extends Document {
 	updatedAt: Date;
 }
 
-// Mongoose Schema
 const restockQueueSchema = new Schema<IRestockQueue>(
 	{
 		product: {
@@ -25,11 +22,6 @@ const restockQueueSchema = new Schema<IRestockQueue>(
 			type: Number,
 			required: [true, "Current stock is required"],
 			min: [0, "Stock cannot be negative"],
-		},
-		threshold: {
-			type: Number,
-			required: [true, "Threshold is required"],
-			min: [1, "Threshold must be at least 1"],
 		},
 		priority: {
 			type: String,

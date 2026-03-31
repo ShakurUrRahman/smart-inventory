@@ -3,8 +3,15 @@ import { Schema, model, Document, Types } from "mongoose";
 // TypeScript Interface
 export interface IActivityLog extends Document {
 	action: string;
-	entityType: "Order" | "Product" | "Stock" | "User" | "Category";
+	entityType:
+		| "Order"
+		| "Product"
+		| "Stock"
+		| "User"
+		| "Category"
+		| "RestockQueue";
 	entityId: Types.ObjectId;
+	description?: string;
 	performedBy: Types.ObjectId;
 	createdAt: Date;
 }
@@ -18,8 +25,19 @@ const activityLogSchema = new Schema<IActivityLog>(
 		},
 		entityType: {
 			type: String,
-			enum: ["Order", "Product", "Stock", "User", "Category"],
+			enum: [
+				"Order",
+				"Product",
+				"Stock",
+				"User",
+				"Category",
+				"RestockQueue",
+			],
 			required: [true, "Entity type is required"],
+		},
+		description: {
+			type: String,
+			required: false,
 		},
 		entityId: {
 			type: Schema.Types.ObjectId,

@@ -4,6 +4,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes";
+import categoryRoutes from "./routes/categoryRoutes";
+import productRoutes from "./routes/productRoutes";
+import orderRoutes from "./routes/orderRoutes";
+import restockRoutes from "./routes/restockRoutes";
+// import inventoryRoutes from "./routes/inventoryRoutes";
 
 dotenv.config();
 
@@ -103,6 +108,11 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 
 // API Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/restock", restockRoutes);
+// app.use("/api/inventory", inventoryRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
 	LayoutDashboard,
 	Package,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { logoutUser } from "@/lib/authApi";
+import { restockApi } from "@/lib/restockApi";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -34,6 +36,13 @@ export function Sidebar() {
 	const pathname = usePathname();
 	const { user, clearUser } = useAuthStore();
 	const router = useRouter();
+
+	// Fetch restock count
+	const { data: restockCount = 0 } = useQuery({
+		queryKey: ["restock-count"],
+		queryFn: restockApi.getRestockCount,
+		refetchInterval: 30000, // Refetch every 30 seconds
+	});
 
 	const navItems: NavItem[] = [
 		{
@@ -60,8 +69,8 @@ export function Sidebar() {
 			label: "Restock Queue",
 			href: "/restock",
 			icon: <AlertTriangle className="w-5 h-5" />,
-			badge: 3,
-			badgeColor: "bg-red-500",
+			badge: restockCount,
+			badgeColor: restockCount > 0 ? "bg-red-500" : "bg-zinc-600",
 		},
 		{
 			label: "Activity Log",

@@ -4,18 +4,6 @@ import jwt from "jsonwebtoken";
 import { User, IUser } from "../models/User";
 import { logActivity } from "../utils/activityLogger";
 
-// Extend Express Request to include user
-declare global {
-	namespace Express {
-		interface Request {
-			user?: {
-				userId: string;
-				role: string;
-			};
-		}
-	}
-}
-
 /**
  * Register a new user
  * @route POST /api/auth/register
