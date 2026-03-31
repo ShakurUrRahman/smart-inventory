@@ -6,17 +6,17 @@ export interface RestockQueueItem {
 	product: {
 		_id: string;
 		name: string;
-		category: string;
+		category?: string;
 		stock: number;
 		minStockThreshold: number;
 		status: string;
 	};
 	currentStock: number;
-	requiredStock: number;
 	priority: "High" | "Medium" | "Low";
 	isResolved: boolean;
-	requestedAt: string;
-	resolvedAt?: string;
+	resolvedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface RestockQueueResponse {
