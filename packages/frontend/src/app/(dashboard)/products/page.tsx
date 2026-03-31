@@ -20,6 +20,7 @@ import { SkeletonGrid } from "@/components/shared/Skeleton";
 import { categoriesApi } from "@/lib/categoriesApi";
 import { productsApi, Product } from "@/lib/productsApi";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/useSearch";
 
 import {
 	AddEditProductDialog,
@@ -41,9 +42,6 @@ export default function ProductsPage() {
 		searchParams.get("status") || "",
 	);
 	const [page, setPage] = useState(parseInt(searchParams.get("page") || "1"));
-	const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
-		null,
-	);
 
 	// Dialog states
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -72,16 +70,8 @@ export default function ProductsPage() {
 	};
 
 	// Debounced search
-	const handleSearchChange = (value: string) => {
-		setSearch(value);
-		if (searchTimeout) clearTimeout(searchTimeout);
-		setSearchTimeout(
-			setTimeout(() => {
-				setPage(1);
-				updateUrl(value, categoryFilter, statusFilter, 1);
-			}, 400),
-		);
-	};
+	const debouncedSearch = useDebounce(search, 400);
+	const handleSearchChange = (value: string) => setSearch(value);
 
 	// Fetch categories for dropdown
 	const { data: categories = [] } = useQuery({
@@ -94,7 +84,7 @@ export default function ProductsPage() {
 		queryKey: ["products", { search, categoryFilter, statusFilter, page }],
 		queryFn: () =>
 			productsApi.getAllProducts({
-				search,
+				search: debouncedSearch || undefined,
 				category: categoryFilter || undefined,
 				status: statusFilter || undefined,
 				page,
