@@ -1,15 +1,19 @@
 {
 	"version": 2,
+	"installCommand": "cd packages/backend && npm install",
 	"builds": [
 		{
-			"src": "src/index.ts",
-			"use": "@vercel/node"
+			"src": "packages/backend/src/index.ts",
+			"use": "@vercel/node",
+			"config": {
+				"includeFiles": ["packages/backend/src/**"]
+			}
 		}
 	],
 	"routes": [
 		{
-			"src": "/(.*)",
-			"dest": "src/index.ts"
+			"src": "/api/(.*)",
+			"dest": "packages/backend/src/index.ts"
 		}
 	]
 }
