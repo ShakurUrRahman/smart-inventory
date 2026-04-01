@@ -4,8 +4,8 @@ import { Product } from "../models";
 import { Order } from "../models";
 import { ActivityLog } from "../models";
 import bcryptjs from "bcryptjs";
-import { handleRestockCheck } from "./utils/restockHandler";
 import { RestockQueue } from "../models";
+import { handleRestockCheck } from "./restockHandler";
 
 export const seedDatabase = async () => {
 	try {
