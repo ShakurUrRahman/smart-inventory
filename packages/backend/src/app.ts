@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -15,7 +15,7 @@ dotenv.config();
 
 const app: Express = express();
 
-// Middleware
+// ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(
 	cors({
 		origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -25,23 +25,27 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// MongoDB Connection
+// ─── MongoDB Connection ───────────────────────────────────────────────────────
 const connectDB = async () => {
 	try {
+		// Skip if already connected (important for Vercel serverless warm starts)
+		if (mongoose.connection.readyState === 1) return;
+
 		const mongoUri =
 			process.env.MONGODB_URI ||
 			"mongodb://localhost:27017/smart-inventory";
+
 		await mongoose.connect(mongoUri);
 		console.log("✅ MongoDB connected successfully");
 	} catch (error) {
 		console.error("❌ MongoDB connection error:", error);
-		process.exit(1);
+		throw error; // Don't process.exit — breaks Vercel serverless
 	}
 };
 
 connectDB();
 
-// Routes
+// ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req: Request, res: Response) => {
 	res.json({
 		status: "ok",
@@ -51,6 +55,7 @@ app.get("/api/health", (req: Request, res: Response) => {
 	});
 });
 
+// ─── Seed Route ───────────────────────────────────────────────────────────────
 app.get("/api/seed", async (req: Request, res: Response) => {
 	try {
 		const { seedDatabase } = await import("./utils/seedDatabase");
@@ -66,6 +71,7 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 	}
 });
 
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
@@ -74,32 +80,37 @@ app.use("/api/restock", restockRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activity", activityRoutes);
 
-// 404 handler
+// ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {
-	res.status(404).json({ success: false, message: "Route not found" });
-});
-
-// Error handler
-app.use((err: any, req: Request, res: Response) => {
-	console.error(err);
-	res.status(500).json({
+	res.status(404).json({
 		success: false,
-		message: "Internal server error",
-		error: process.env.NODE_ENV === "development" ? err.message : undefined,
+		message: "Route not found",
 	});
 });
 
-// Export for Vercel
-export default app;
+// ─── Global Error Handler ─────────────────────────────────────────────────────
+// Must have all 4 params for Express to recognize it as an error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+	console.error("Unhandled error:", err);
+	res.status(err.status || 500).json({
+		success: false,
+		message: err.message || "Internal server error",
+		error: process.env.NODE_ENV === "development" ? err.stack : undefined,
+	});
+});
 
-// Local dev server
+// ─── Local Dev Server ─────────────────────────────────────────────────────────
+// Vercel handles its own server — only listen locally
 if (process.env.NODE_ENV !== "production") {
 	const PORT = process.env.PORT || 5000;
 	app.listen(PORT, () => {
 		console.log(`🚀 Server running on port ${PORT}`);
 		console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
 		console.log(
-			`🔗 MongoDB URI: ${process.env.MONGODB_URI || "mongodb://localhost:27017/smart-inventory"}`,
+			`🔗 MongoDB: ${process.env.MONGODB_URI ? "Atlas (env)" : "localhost"}`,
 		);
 	});
 }
+
+// ─── Export for Vercel ────────────────────────────────────────────────────────
+export default app;
