@@ -39,7 +39,6 @@ const connectDB = async () => {
 	}
 };
 
-// Connect to database
 connectDB();
 
 // Routes
@@ -52,16 +51,11 @@ app.get("/api/health", (req: Request, res: Response) => {
 	});
 });
 
-// Seed endpoint - create demo data if doesn't exist
 app.get("/api/seed", async (req: Request, res: Response) => {
 	try {
 		const { seedDatabase } = await import("./utils/seedDatabase");
 		const result = await seedDatabase();
-
-		res.status(201).json({
-			success: true,
-			...result,
-		});
+		res.status(201).json({ success: true, ...result });
 	} catch (error: any) {
 		console.error("Seed error:", error);
 		res.status(500).json({
@@ -72,7 +66,6 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 	}
 });
 
-// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
@@ -83,13 +76,10 @@ app.use("/api/activity", activityRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
-	res.status(404).json({
-		success: false,
-		message: "Route not found",
-	});
+	res.status(404).json({ success: false, message: "Route not found" });
 });
 
-// Error handling middleware
+// Error handler
 app.use((err: any, req: Request, res: Response) => {
 	console.error(err);
 	res.status(500).json({
@@ -99,14 +89,17 @@ app.use((err: any, req: Request, res: Response) => {
 	});
 });
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-	console.log(`🚀 Server running on port ${PORT}`);
-	console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-	console.log(
-		`🔗 MongoDB URI: ${process.env.MONGODB_URI || "mongodb://localhost:27017/smart-inventory"}`,
-	);
-});
-
+// Export for Vercel
 export default app;
+
+// Local dev server
+if (process.env.NODE_ENV !== "production") {
+	const PORT = process.env.PORT || 5000;
+	app.listen(PORT, () => {
+		console.log(`🚀 Server running on port ${PORT}`);
+		console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+		console.log(
+			`🔗 MongoDB URI: ${process.env.MONGODB_URI || "mongodb://localhost:27017/smart-inventory"}`,
+		);
+	});
+}
