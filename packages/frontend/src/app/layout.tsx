@@ -4,8 +4,10 @@ import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-	title: "Smart Inventory",
-	description: "Smart Inventory Management System",
+	title: "InventoryOS — Smart Inventory Management",
+	description:
+		"Professional inventory management system with real-time tracking, order management, and analytics",
+	keywords: ["inventory", "management", "orders", "stock", "dashboard"],
 };
 
 export default function RootLayout({
@@ -15,7 +17,14 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en" className="dark">
-			<body>
+			<head>
+				<meta charSet="utf-8" />
+				<meta
+					name="viewport"
+					content="width=device-width, initial-scale=1"
+				/>
+			</head>
+			<body className="bg-[#0a0d12]">
 				<Providers>{children}</Providers>
 				<Toaster position="top-right" theme="dark" />
 			</body>

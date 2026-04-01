@@ -8,7 +8,8 @@ import categoryRoutes from "./routes/categoryRoutes";
 import productRoutes from "./routes/productRoutes";
 import orderRoutes from "./routes/orderRoutes";
 import restockRoutes from "./routes/restockRoutes";
-// import inventoryRoutes from "./routes/inventoryRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes";
+import activityRoutes from "./routes/activityRoutes";
 
 dotenv.config();
 
@@ -51,57 +52,22 @@ app.get("/api/health", (req: Request, res: Response) => {
 	});
 });
 
-// Seed endpoint - create demo user if doesn't exist
+// Seed endpoint - create demo data if doesn't exist
 app.get("/api/seed", async (req: Request, res: Response) => {
 	try {
-		const { User } = await import("./models");
-		const bcrypt = await import("bcryptjs");
-
-		// Check if demo user already exists
-		const existingUser = await User.findOne({
-			email: "demo@inventory.com",
-		});
-
-		if (existingUser) {
-			res.status(200).json({
-				success: true,
-				message: "Demo user already exists",
-				user: {
-					id: existingUser._id,
-					name: existingUser.name,
-					email: existingUser.email,
-					role: existingUser.role,
-				},
-			});
-			return;
-		}
-
-		// Create demo user
-		const salt = await bcrypt.default.genSalt(10);
-		const passwordHash = await bcrypt.default.hash("demo123", salt);
-
-		const demoUser = await User.create({
-			name: "Demo User",
-			email: "demo@inventory.com",
-			passwordHash,
-			role: "admin",
-		});
+		const { seedDatabase } = await import("./utils/seedDatabase");
+		const result = await seedDatabase();
 
 		res.status(201).json({
 			success: true,
-			message: "Seeded successfully",
-			user: {
-				id: demoUser._id,
-				name: demoUser.name,
-				email: demoUser.email,
-				role: demoUser.role,
-			},
+			...result,
 		});
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Seed error:", error);
 		res.status(500).json({
 			success: false,
 			message: "Seeding failed",
+			error: error.message,
 		});
 	}
 });
@@ -112,7 +78,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/restock", restockRoutes);
-// app.use("/api/inventory", inventoryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/activity", activityRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

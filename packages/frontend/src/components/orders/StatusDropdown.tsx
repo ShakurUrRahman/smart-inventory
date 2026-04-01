@@ -31,6 +31,7 @@ export function StatusDropdown({ order, onStatusChange }: StatusDropdownProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 	const buttonRef = useRef<HTMLButtonElement>(null);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 	const validNextStatuses = VALID_TRANSITIONS[order.status] || [];
 
 	useEffect(() => {
@@ -38,16 +39,18 @@ export function StatusDropdown({ order, onStatusChange }: StatusDropdownProps) {
 			const rect = buttonRef.current.getBoundingClientRect();
 			setPosition({
 				top: rect.bottom + window.scrollY + 4,
-				left: rect.right + window.scrollX - 160, // 160 = w-40
+				left: rect.right + window.scrollX - 160,
 			});
 		}
 	}, [isOpen]);
 
-	// Close on outside click
 	useEffect(() => {
 		if (!isOpen) return;
 		const handle = (e: MouseEvent) => {
-			if (!buttonRef.current?.contains(e.target as Node)) {
+			if (
+				!buttonRef.current?.contains(e.target as Node) &&
+				!dropdownRef.current?.contains(e.target as Node)
+			) {
 				setIsOpen(false);
 			}
 		};
@@ -76,13 +79,15 @@ export function StatusDropdown({ order, onStatusChange }: StatusDropdownProps) {
 			{isOpen &&
 				createPortal(
 					<div
+						ref={dropdownRef}
 						style={{ top: position.top, left: position.left }}
 						className="fixed w-40 bg-[#1C1F2A] border border-zinc-700/60 rounded-lg shadow-lg z-[9999]"
 					>
 						{validNextStatuses.map((status) => (
 							<button
 								key={status}
-								onClick={() => {
+								onMouseDown={(e) => {
+									e.stopPropagation(); // ← prevent outside click from firing
 									onStatusChange(status);
 									setIsOpen(false);
 								}}

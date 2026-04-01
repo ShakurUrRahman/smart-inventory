@@ -7,7 +7,14 @@ export function middleware(request: NextRequest) {
 	const token = request.cookies.get("token")?.value;
 
 	// Check if user is trying to access protected routes
-	const isProtectedRoute = pathname.startsWith("/dashboard");
+	const isProtectedRoute =
+		pathname.startsWith("/dashboard") ||
+		pathname.startsWith("/products") ||
+		pathname.startsWith("/categories") ||
+		pathname.startsWith("/orders") ||
+		pathname.startsWith("/restock") ||
+		pathname.startsWith("/activity");
+
 	const isAuthRoute =
 		pathname.startsWith("/login") || pathname.startsWith("/register");
 	const isAuthApiRoute = pathname.startsWith("/api/auth");

@@ -333,8 +333,8 @@ export default function RestockPage() {
 														{item.product.name}
 													</td>
 													<td className="px-4 py-3 text-zinc-400">
-														{item.product
-															.category || "—"}
+														{item.product.category
+															?.name || "—"}
 													</td>
 													<td className="px-4 py-3">
 														<div className="space-y-2">

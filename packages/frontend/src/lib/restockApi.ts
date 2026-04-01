@@ -6,7 +6,10 @@ export interface RestockQueueItem {
 	product: {
 		_id: string;
 		name: string;
-		category?: string;
+		category?: {
+			_id: string;
+			name: string;
+		};
 		stock: number;
 		minStockThreshold: number;
 		status: string;

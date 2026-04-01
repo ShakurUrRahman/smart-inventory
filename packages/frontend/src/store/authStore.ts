@@ -30,7 +30,16 @@ export const useAuthStore = create<AuthStore>()(
 
 			setUser: (user: User) => set({ user }),
 
-			clearUser: () => set({ user: null }),
+			clearUser: () => {
+				// Clear Zustand state
+				set({ user: null, isHydrated: false });
+				// Also clear localStorage manually
+				try {
+					localStorage.removeItem("auth-store");
+				} catch (error) {
+					console.log("Error clearing localStorage:", error);
+				}
+			},
 
 			setIsLoading: (loading: boolean) => set({ isLoading: loading }),
 

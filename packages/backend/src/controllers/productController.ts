@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { Product } from "../models/Product";
 import { Category } from "../models/Category";
-import { RestockQueue } from "../models/RestockQueue";
 import { Order } from "../models/Order";
 import { logActivity } from "../utils/activityLogger";
+import { handleRestockCheck } from "../utils/restockHandler";
 
 // Get All Products with Filters & Pagination
 export const getAllProducts = async (req: Request, res: Response) => {
@@ -131,24 +131,8 @@ export const createProduct = async (req: Request, res: Response) => {
 			createdBy: userId,
 		});
 
-		// Add to restock queue if stock is low
-		if (stock < minStockThreshold && stock > 0) {
-			// Determine priority
-			let priority: "High" | "Medium" | "Low" = "Low";
-			if (stock === 0) {
-				priority = "High";
-			} else if (stock <= minStockThreshold / 2) {
-				priority = "Medium";
-			}
-
-			await RestockQueue.create({
-				product: product._id,
-				currentStock: stock,
-				requiredStock: minStockThreshold,
-				priority,
-				requestedAt: new Date(),
-			});
-		}
+		// ✅ Handle restock queue
+		await handleRestockCheck(product);
 
 		// Log activity
 		await logActivity({
@@ -156,7 +140,7 @@ export const createProduct = async (req: Request, res: Response) => {
 			entityType: "Product",
 			entityId: product._id,
 			userId,
-			description: `Product '${name}' added`,
+			description: `Product '${name}' added to inventory`,
 		});
 
 		const populatedProduct = await Product.findById(product._id).populate(
@@ -178,6 +162,33 @@ export const createProduct = async (req: Request, res: Response) => {
 	}
 };
 
+// Get Product By ID
+export const getProductById = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+
+		const product = await Product.findById(id).populate("category", "name");
+
+		if (!product) {
+			return res.status(404).json({
+				success: false,
+				message: "Product not found",
+			});
+		}
+
+		res.status(200).json({
+			success: true,
+			data: product,
+		});
+	} catch (error: any) {
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch product",
+			error: error.message,
+		});
+	}
+};
+
 // Update Product
 export const updateProduct = async (req: Request, res: Response) => {
 	try {
@@ -194,7 +205,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 			});
 		}
 
-		// Validate allowed fields
+		// Update price
 		if (price !== undefined) {
 			if (typeof price !== "number" || price < 0) {
 				return res.status(400).json({
@@ -205,6 +216,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 			product.price = price;
 		}
 
+		// Update threshold
 		if (minStockThreshold !== undefined) {
 			if (
 				typeof minStockThreshold !== "number" ||
@@ -218,8 +230,8 @@ export const updateProduct = async (req: Request, res: Response) => {
 			product.minStockThreshold = minStockThreshold;
 		}
 
+		// Update category
 		if (category !== undefined) {
-			// Verify category exists
 			const categoryExists = await Category.findById(category);
 			if (!categoryExists) {
 				return res.status(400).json({
@@ -230,6 +242,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 			product.category = category;
 		}
 
+		// Update name
 		if (name !== undefined) {
 			product.name = name;
 		}
@@ -238,6 +251,9 @@ export const updateProduct = async (req: Request, res: Response) => {
 		product.status = product.stock === 0 ? "Out of Stock" : "Active";
 
 		await product.save();
+
+		// ✅ Handle restock queue after update
+		await handleRestockCheck(product);
 
 		// Log activity
 		await logActivity({
@@ -262,6 +278,69 @@ export const updateProduct = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "Failed to update product",
+			error: error.message,
+		});
+	}
+};
+
+// Restock Product (Add Stock)
+export const restockProduct = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const userId = req.user?.userId;
+		const { quantity } = req.body;
+
+		// Validate quantity
+		if (!quantity || typeof quantity !== "number" || quantity <= 0) {
+			return res.status(400).json({
+				success: false,
+				message: "Quantity must be a positive number",
+			});
+		}
+
+		// Find product
+		const product = await Product.findById(id);
+		if (!product) {
+			return res.status(404).json({
+				success: false,
+				message: "Product not found",
+			});
+		}
+
+		const oldStock = product.stock;
+		product.stock += quantity;
+
+		// Update status
+		product.status = product.stock > 0 ? "Active" : "Out of Stock";
+
+		await product.save();
+
+		// ✅ Handle restock queue
+		await handleRestockCheck(product);
+
+		// Log activity
+		await logActivity({
+			action: "Stock Updated",
+			entityType: "Product",
+			entityId: product._id,
+			userId,
+			description: `Stock updated for '${product.name}' (+${quantity} units, ${oldStock} → ${product.stock})`,
+		});
+
+		const updatedProduct = await Product.findById(id).populate(
+			"category",
+			"name",
+		);
+
+		res.status(200).json({
+			success: true,
+			message: "Product restocked successfully",
+			data: updatedProduct,
+		});
+	} catch (error: any) {
+		res.status(500).json({
+			success: false,
+			message: "Failed to restock product",
 			error: error.message,
 		});
 	}
@@ -299,16 +378,13 @@ export const deleteProduct = async (req: Request, res: Response) => {
 		// Delete product
 		await Product.findByIdAndDelete(id);
 
-		// Remove from restock queue if present
-		await RestockQueue.deleteMany({ product: id });
-
 		// Log activity
 		await logActivity({
 			action: "Product Deleted",
 			entityType: "Product",
 			entityId: id,
 			userId,
-			description: `Product '${product.name}' deleted`,
+			description: `Product '${product.name}' deleted from inventory`,
 		});
 
 		res.status(200).json({
@@ -319,104 +395,6 @@ export const deleteProduct = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "Failed to delete product",
-			error: error.message,
-		});
-	}
-};
-
-// Restock Product
-export const restockProduct = async (req: Request, res: Response) => {
-	try {
-		const { id } = req.params;
-		const userId = req.user?.userId;
-		const { quantity } = req.body;
-
-		// Validate quantity
-		if (!quantity || typeof quantity !== "number" || quantity <= 0) {
-			return res.status(400).json({
-				success: false,
-				message: "Quantity must be a positive number",
-			});
-		}
-
-		// Find product
-		const product = await Product.findById(id);
-		if (!product) {
-			return res.status(404).json({
-				success: false,
-				message: "Product not found",
-			});
-		}
-
-		const oldStock = product.stock;
-		product.stock += quantity;
-
-		// Update status
-		product.status = product.stock > 0 ? "Active" : "Out of Stock";
-
-		await product.save();
-
-		// If stock is now above threshold, mark restock queue as resolved
-		if (product.stock >= product.minStockThreshold) {
-			await RestockQueue.findOneAndUpdate(
-				{ product: id, isResolved: false },
-				{
-					isResolved: true,
-					resolvedAt: new Date(),
-				},
-			);
-		}
-
-		// Log activity
-		await logActivity({
-			action: "Stock Updated",
-			entityType: "Product",
-			entityId: product._id,
-			userId,
-			description: `Stock updated for '${product.name}' (+${quantity} units, ${oldStock} → ${product.stock})`,
-		});
-
-		const updatedProduct = await Product.findById(id).populate(
-			"category",
-			"name",
-		);
-
-		res.status(200).json({
-			success: true,
-			message: "Product restocked successfully",
-			data: updatedProduct,
-		});
-	} catch (error: any) {
-		res.status(500).json({
-			success: false,
-			message: "Failed to restock product",
-			error: error.message,
-		});
-	}
-};
-
-// Get Product By ID
-export const getProductById = async (req: Request, res: Response) => {
-	try {
-		const { id } = req.params;
-
-		const product = await Product.findById(id).populate("category", "name");
-
-		if (!product) {
-			return res.status(404).json({
-				success: false,
-				message: "Product not found",
-			});
-		}
-
-		res.status(200).json({
-			success: true,
-			data: product,
-		});
-	} catch (error: any) {
-		res.status(500).json({
-			success: false,
-			message: "Failed to fetch product",
 			error: error.message,
 		});
 	}

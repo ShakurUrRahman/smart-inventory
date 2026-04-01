@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ProtectedLayout } from "@/components/layout/ProtectedLayout";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,5 +12,9 @@ export default function RootDashboardLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	return <DashboardLayout pageTitle="Dashboard">{children}</DashboardLayout>;
+	return (
+		<ProtectedLayout>
+			<DashboardLayout pageTitle="Dashboard">{children}</DashboardLayout>
+		</ProtectedLayout>
+	);
 }
