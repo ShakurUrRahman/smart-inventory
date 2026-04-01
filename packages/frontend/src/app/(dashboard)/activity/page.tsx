@@ -7,7 +7,6 @@ import { ShoppingCart, Package, ArrowUp, User, Tag } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SkeletonGrid } from "@/components/shared/Skeleton";
 import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
 
 const ENTITY_TYPES = ["all", "Order", "Product", "Stock", "User", "Category"];
 
