@@ -1,11 +1,11 @@
-import { User } from "./models/User";
-import { Category } from "./models/Category";
-import { Product } from "./models/Product";
-import { Order } from "./models/Order";
-import { RestockQueue } from "./models/RestockQueue";
-import { ActivityLog } from "./models/ActivityLog";
+import { User } from "../models";
+import { Category } from "../models";
+import { Product } from "../models";
+import { Order } from "../models";
+import { ActivityLog } from "../models";
 import bcryptjs from "bcryptjs";
 import { handleRestockCheck } from "./utils/restockHandler";
+import { RestockQueue } from "../models";
 
 export const seedDatabase = async () => {
 	try {
