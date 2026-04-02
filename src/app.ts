@@ -34,7 +34,7 @@ export const connectDB = async () => {
 			"mongodb://localhost:27017/smart-inventory";
 		await mongoose.connect(mongoUri, {
 			serverSelectionTimeoutMS: 10000,
-			bufferCommands: false,
+			// bufferCommands: false,
 		});
 		console.log("✅ MongoDB connected successfully");
 	} catch (error) {
