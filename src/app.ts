@@ -45,6 +45,20 @@ export const connectDB = async () => {
 
 connectDB();
 
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (mongoose.connection.readyState !== 1) {
+			await connectDB();
+		}
+		next();
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: "Database connection failed",
+		});
+	}
+});
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req: Request, res: Response) => {
 	res.json({
