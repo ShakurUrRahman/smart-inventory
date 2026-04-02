@@ -59,6 +59,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 			entityType: "User",
 			entityId: newUser._id,
 			userId: newUser._id,
+			description: `New user '${newUser.name}' registered with role ${newUser.role}`,
 		});
 
 		res.status(201).json({
@@ -148,6 +149,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 			entityType: "User",
 			entityId: user._id,
 			userId: user._id,
+			description: `'${user.name}' logged in`, // ← add
 		});
 
 		res.status(200).json({
@@ -180,11 +182,14 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 	try {
 		// Log activity
 		if (req.user?.userId) {
+			const user = await User.findById(req.user.userId).select("name");
+
 			await logActivity({
 				action: "User Logged Out",
 				entityType: "User",
 				entityId: req.user.userId,
 				userId: req.user.userId,
+				description: `${user?.name} logged out`,
 			});
 		}
 
