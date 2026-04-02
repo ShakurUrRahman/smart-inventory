@@ -26,20 +26,20 @@ app.use(express.json());
 app.use(cookieParser());
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
-const connectDB = async () => {
+export const connectDB = async () => {
 	try {
-		// Skip if already connected (important for Vercel serverless warm starts)
 		if (mongoose.connection.readyState === 1) return;
-
 		const mongoUri =
 			process.env.MONGODB_URI ||
 			"mongodb://localhost:27017/smart-inventory";
-
-		await mongoose.connect(mongoUri);
+		await mongoose.connect(mongoUri, {
+			serverSelectionTimeoutMS: 10000,
+			bufferCommands: false,
+		});
 		console.log("✅ MongoDB connected successfully");
 	} catch (error) {
 		console.error("❌ MongoDB connection error:", error);
-		throw error; // Don't process.exit — breaks Vercel serverless
+		throw error;
 	}
 };
 
@@ -58,6 +58,9 @@ app.get("/api/health", (req: Request, res: Response) => {
 // ─── Seed Route ───────────────────────────────────────────────────────────────
 app.get("/api/seed", async (req: Request, res: Response) => {
 	try {
+		if (mongoose.connection.readyState !== 1) {
+			await connectDB();
+		}
 		const { seedDatabase } = await import("./utils/seedDatabase");
 		const result = await seedDatabase();
 		res.status(201).json({ success: true, ...result });
@@ -82,14 +85,10 @@ app.use("/api/activity", activityRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {
-	res.status(404).json({
-		success: false,
-		message: "Route not found",
-	});
+	res.status(404).json({ success: false, message: "Route not found" });
 });
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
-// Must have all 4 params for Express to recognize it as an error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 	console.error("Unhandled error:", err);
 	res.status(err.status || 500).json({
@@ -100,7 +99,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // ─── Local Dev Server ─────────────────────────────────────────────────────────
-// Vercel handles its own server — only listen locally
 if (process.env.NODE_ENV !== "production") {
 	const PORT = process.env.PORT || 5000;
 	app.listen(PORT, () => {
