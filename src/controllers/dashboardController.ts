@@ -214,19 +214,17 @@ export const getProductSummary = async (req: Request, res: Response) => {
 			.populate("category", "name")
 			.sort({ stock: 1 })
 			.limit(8)
-			.select("name stock minStockThreshold status category");
+			.select("name stock price minStockThreshold status category");
 
-		const formattedProducts = products.map((p) => {
-			const cat = p.category as any;
-			return {
-				_id: p._id,
-				name: p.name,
-				stock: p.stock,
-				minStockThreshold: p.minStockThreshold,
-				status: p.status,
-				category: cat?.name ?? String(cat),
-			};
-		});
+		const formattedProducts = products.map((p: any) => ({
+			_id: p._id,
+			name: p.name,
+			stock: p.stock,
+			price: p.price,
+			minStockThreshold: p.minStockThreshold,
+			status: p.status,
+			category: p.category?.name || p.category,
+		}));
 
 		res.status(200).json({
 			success: true,
@@ -279,7 +277,7 @@ export const getRecentActivity = async (req: Request, res: Response) => {
 	try {
 		const activities = await ActivityLog.find()
 			.sort({ createdAt: -1 })
-			.limit(10)
+			.limit(100)
 			.populate("performedBy", "name");
 
 		res.status(200).json({
@@ -287,6 +285,7 @@ export const getRecentActivity = async (req: Request, res: Response) => {
 			data: activities,
 		});
 	} catch (error: any) {
+		console.error("❌ Activity error:", error.message);
 		res.status(500).json({
 			success: false,
 			message: "Failed to fetch recent activity",
