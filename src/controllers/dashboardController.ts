@@ -3,6 +3,7 @@ import { Order } from "../models/Order";
 import { Product } from "../models/Product";
 import { RestockQueue } from "../models/RestockQueue";
 import { ActivityLog } from "../models/ActivityLog";
+import { Category } from "../models";
 
 // Get Dashboard Stats
 export const getDashboardStats = async (req: Request, res: Response) => {
@@ -24,6 +25,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 		// Get all stats in parallel
 		const [
+			totalOrders,
 			totalOrdersToday,
 			pendingOrders,
 			confirmedOrders,
@@ -31,9 +33,12 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 			deliveredOrders,
 			lowStockCount,
 			totalProducts,
+			totalCategories,
 			totalActiveProducts,
 			revenueResult,
+			totalRevenueResult,
 		] = await Promise.all([
+			Order.countDocuments({}),
 			Order.countDocuments({
 				createdAt: { $gte: todayStart, $lte: todayEnd },
 			}),
@@ -43,6 +48,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 			Order.countDocuments({ status: "Delivered" }),
 			RestockQueue.countDocuments({ isResolved: false }),
 			Product.countDocuments(),
+			Category.countDocuments(),
 			Product.countDocuments({ status: "Active" }),
 			Order.aggregate([
 				{
@@ -58,13 +64,19 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 					},
 				},
 			]),
+			Order.aggregate([
+				{ $match: { status: { $ne: "Cancelled" } } },
+				{ $group: { _id: null, total: { $sum: "$totalPrice" } } },
+			]),
 		]);
 
 		const revenueToday = revenueResult[0]?.total || 0;
+		const totalRevenue = totalRevenueResult[0]?.total || 0;
 
 		res.status(200).json({
 			success: true,
 			data: {
+				totalOrders,
 				totalOrdersToday,
 				pendingOrders,
 				confirmedOrders,
@@ -73,6 +85,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 				revenueToday,
 				lowStockCount,
 				totalProducts,
+				totalRevenue,
+				totalCategories,
 				totalActiveProducts,
 			},
 		});
