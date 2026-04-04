@@ -703,10 +703,10 @@ MIT
 
 - Location: Dhaka, Bangladesh
 - Stack: Node.js, Express, MongoDB, Next.js
-- GitHub: [[My GitHub](https://github.com/ShakururRahman)]
-- Email: [shakururrahman@gmail.com]
+- Email: shakururrahman@gmail.com
 
 ---
 
 **Built with ❤️ using Express.js & TypeScript**
+
 
