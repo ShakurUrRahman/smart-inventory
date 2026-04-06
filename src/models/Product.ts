@@ -1,6 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-// TypeScript Interface
 export interface IProduct extends Document {
 	name: string;
 	category: Types.ObjectId;
@@ -9,11 +8,16 @@ export interface IProduct extends Document {
 	minStockThreshold: number;
 	status: "Active" | "Out of Stock";
 	createdBy: Types.ObjectId;
+	approvalStatus: "pending" | "approved" | "rejected";
+	approvedBy?: Types.ObjectId;
+	approvedAt?: Date;
+	rejectedBy?: Types.ObjectId;
+	rejectedAt?: Date;
+	rejectionReason?: string;
 	createdAt: Date;
 	updatedAt: Date;
 }
 
-// Mongoose Schema
 const productSchema = new Schema<IProduct>(
 	{
 		name: {
@@ -49,10 +53,41 @@ const productSchema = new Schema<IProduct>(
 		createdBy: {
 			type: Schema.Types.ObjectId,
 			ref: "User",
-			required: false,
+			required: true,
+		},
+		approvalStatus: {
+			type: String,
+			enum: ["pending", "approved", "rejected"],
+			default: "pending",
+		},
+		approvedBy: {
+			type: Schema.Types.ObjectId,
+			ref: "User",
+			default: null,
+		},
+		approvedAt: {
+			type: Date,
+			default: null,
+		},
+		rejectedBy: {
+			type: Schema.Types.ObjectId,
+			ref: "User",
+			default: null,
+		},
+		rejectedAt: {
+			type: Date,
+			default: null,
+		},
+		rejectionReason: {
+			type: String,
+			default: null,
 		},
 	},
 	{ timestamps: true },
 );
 
-export const Product = model<IProduct>("Product", productSchema);
+// Index for filtering by approval status and user
+productSchema.index({ approvalStatus: 1, createdBy: 1 });
+productSchema.index({ approvalStatus: 1 });
+
+export default model<IProduct>("Product", productSchema);

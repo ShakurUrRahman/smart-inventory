@@ -1,10 +1,10 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from "express";
 import { Order } from "../models/Order";
-import { Product } from "../models/Product";
 import { logActivity } from "../utils/activityLogger";
 import { generateOrderNumber } from "../utils/generateOrderNumber";
 import { handleRestockCheck } from "../utils/restockHandler";
-
+import Product, { IProduct } from "../models/Product";
 // Get All Orders with Filters & Pagination
 export const getAllOrders = async (req: Request, res: Response) => {
 	try {
@@ -78,7 +78,7 @@ export const getAllOrders = async (req: Request, res: Response) => {
 export const createOrder = async (req: Request, res: Response) => {
 	try {
 		const { customerName, items } = req.body;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 		const conflicts: any[] = [];
 
 		// ============================================
@@ -131,7 +131,9 @@ export const createOrder = async (req: Request, res: Response) => {
 		// ============================================
 		const productIds2 = items.map((item) => item.productId);
 		const products = await Product.find({ _id: { $in: productIds2 } });
-		const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+		const productMap = new Map<string, IProduct>(
+			products.map((p: IProduct) => [p._id.toString(), p]),
+		);
 
 		items.forEach((item) => {
 			const product = productMap.get(item.productId.toString());
@@ -183,7 +185,9 @@ export const createOrder = async (req: Request, res: Response) => {
 		const orderNumber = await generateOrderNumber();
 
 		const orderItems = items.map((item) => {
-			const product = productMap.get(item.productId.toString())!;
+			const product = productMap.get(
+				item.productId.toString(),
+			) as IProduct;
 			const subtotal = item.quantity * product.price;
 
 			return {
@@ -265,7 +269,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 		const { status } = req.body;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		// Find order
 		const order = await Order.findById(id).populate("items.product");

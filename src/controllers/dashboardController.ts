@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Order } from "../models/Order";
-import { Product } from "../models/Product";
+import Product, { IProduct } from "../models/Product";
 import { RestockQueue } from "../models/RestockQueue";
 import { ActivityLog } from "../models/ActivityLog";
 import { Category } from "../models";

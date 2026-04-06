@@ -7,18 +7,33 @@ import {
 	deleteProduct,
 	restockProduct,
 } from "../controllers/productController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import {
+	requireAuth,
+	requireRole,
+	requireOwnershipOrRole,
+} from "../middleware/rbacMiddleware";
 
 const router = Router();
 
-// All routes require authentication
-router.use(authMiddleware);
+router.use(requireAuth);
 
-router.post("/", createProduct);
 router.get("/", getAllProducts);
 router.get("/:id", getProductById);
-router.put("/:id", updateProduct);
-router.patch("/:id/restock", restockProduct);
-router.delete("/:id", deleteProduct);
+router.post("/", createProduct);
+router.put(
+	"/:id",
+	requireOwnershipOrRole(["admin", "manager", "super_admin"]),
+	updateProduct,
+);
+router.patch(
+	"/:id/restock",
+	requireRole("admin", "manager", "super_admin"),
+	restockProduct,
+);
+router.delete(
+	"/:id",
+	requireOwnershipOrRole(["admin", "manager", "super_admin"]),
+	deleteProduct,
+);
 
 export default router;

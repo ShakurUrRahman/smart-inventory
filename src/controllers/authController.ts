@@ -1,7 +1,8 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { User, IUser } from "../models/User";
+import User, { IUser } from "../models/User";
 import { logActivity } from "../utils/activityLogger";
 
 /**
@@ -12,7 +13,12 @@ import { logActivity } from "../utils/activityLogger";
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
 	try {
-		const { name, email, password, role } = req.body;
+		const { name, email, password, role } = req.body as {
+			name: string;
+			email: string;
+			password: string;
+			role?: string;
+		};
 
 		// Validation
 		if (!name || !email || !password) {
@@ -59,7 +65,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 			entityType: "User",
 			entityId: newUser._id,
 			userId: newUser._id,
-			description: `New user '${newUser.name}' registered with role ${newUser.role}`,
 		});
 
 		res.status(201).json({
@@ -70,6 +75,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 				name: newUser.name,
 				email: newUser.email,
 				role: newUser.role,
+				isSuperAdmin: newUser.isSuperAdmin,
+				categoryPermissions: newUser.categoryPermissions,
+				isActive: newUser.isActive,
+				createdAt: newUser.createdAt,
 			},
 		});
 	} catch (error) {
@@ -126,16 +135,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 		}
 
 		// Generate JWT
+		const secret = process.env.JWT_SECRET || "your-secret-key";
 		const token = jwt.sign(
 			{ userId: user._id, role: user.role },
 			process.env.JWT_SECRET || "your-secret-key",
-			{
-				expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as "7d",
-			},
+			{ expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any },
 		);
+
+		// console.log("✅ JWT generated successfully");
+		// console.log("   Token length:", token.length);
 
 		// Set cookie
 		const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+		// console.log("🔐 Setting cookie...");
+		// console.log("   httpOnly: true");
+		// console.log("   secure:", process.env.NODE_ENV === "production");
+		// console.log("   sameSite: lax");
+		// console.log("   maxAge:", maxAge, "ms");
+
 		res.cookie("token", token, {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production", // false in dev, true in prod
@@ -143,13 +160,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 			maxAge,
 		});
 
+		// console.log("✅ Cookie set in response headers");
+
 		// Log activity
 		await logActivity({
 			action: "User Logged In",
 			entityType: "User",
 			entityId: user._id,
 			userId: user._id,
-			description: `'${user.name}' logged in`, // ← add
 		});
 
 		res.status(200).json({
@@ -161,6 +179,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 				name: user.name,
 				email: user.email,
 				role: user.role,
+				isSuperAdmin: user.isSuperAdmin,
+				categoryPermissions: user.categoryPermissions,
+				isActive: user.isActive,
+				createdAt: user.createdAt,
 			},
 		});
 	} catch (error) {
@@ -181,15 +203,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const logout = async (req: Request, res: Response): Promise<void> => {
 	try {
 		// Log activity
-		if (req.user?.userId) {
-			const user = await User.findById(req.user.userId).select("name");
+		const user = req.user as IUser; // ← cast here
 
+		if (user?._id) {
 			await logActivity({
 				action: "User Logged Out",
 				entityType: "User",
-				entityId: req.user.userId,
-				userId: req.user.userId,
-				description: `${user?.name} logged out`,
+				entityId: user._id,
+				userId: user._id,
+				description: `User logged out`,
 			});
 		}
 
@@ -216,40 +238,39 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 /**
  * Get current logged in user
  * @route GET /api/auth/me
- * @param {Request} req - Express request (should have req.user from middleware)
+ * @param {Request} req - Express request (should have req.user from requireAuth middleware)
  * @param {Response} res - Express response
  */
+
 export const getMe = async (req: Request, res: Response): Promise<void> => {
 	try {
-		if (!req.user?.userId) {
-			res.status(401).json({
-				success: false,
-				message: "Unauthorized",
-			});
+		const user = req.user as IUser; // ← cast here
+
+		if (!user?._id) {
+			res.status(401).json({ success: false, message: "Unauthorized" });
 			return;
 		}
 
-		const user = await User.findById(req.user.userId);
-		if (!user) {
-			res.status(404).json({
-				success: false,
-				message: "User not found",
-			});
+		const fullUser = await User.findById(user._id);
+		if (!fullUser) {
+			res.status(404).json({ success: false, message: "User not found" });
 			return;
 		}
 
 		res.status(200).json({
 			success: true,
 			user: {
-				id: user._id,
-				name: user.name,
-				email: user.email,
-				role: user.role,
-				createdAt: user.createdAt,
+				id: fullUser._id,
+				name: fullUser.name,
+				email: fullUser.email,
+				role: fullUser.role,
+				isSuperAdmin: fullUser.isSuperAdmin,
+				categoryPermissions: fullUser.categoryPermissions,
+				isActive: fullUser.isActive,
+				createdAt: fullUser.createdAt,
 			},
 		});
 	} catch (error) {
-		console.error("GetMe error:", error);
 		res.status(500).json({
 			success: false,
 			message: "Internal server error",

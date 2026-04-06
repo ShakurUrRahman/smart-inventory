@@ -2,15 +2,15 @@ import { Router } from "express";
 import {
 	getAllOrders,
 	createOrder,
-	getOrderById,
 	updateOrderStatus,
+	getOrderById,
 } from "../controllers/orderController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { requireAuth, requireRole } from "../middleware/rbacMiddleware";
 
 const router = Router();
 
-// All routes require authentication
-router.use(authMiddleware);
+router.use(requireAuth);
+router.use(requireRole("admin", "manager", "super_admin"));
 
 router.get("/", getAllOrders);
 router.post("/", createOrder);

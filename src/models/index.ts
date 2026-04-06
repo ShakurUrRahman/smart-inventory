@@ -1,7 +1,7 @@
 // Export all models from a single file for cleaner imports
-export { User, type IUser } from "./User";
+
 export { Category, type ICategory } from "./Category";
-export { Product, type IProduct } from "./Product";
+
 export { Order, type IOrder, type IOrderItem } from "./Order";
 export { RestockQueue, type IRestockQueue } from "./RestockQueue";
 export { ActivityLog, type IActivityLog } from "./ActivityLog";

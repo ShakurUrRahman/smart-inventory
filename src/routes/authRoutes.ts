@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { register, login, logout, getMe } from "../controllers/authController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { requireAuth } from "../middleware/rbacMiddleware";
 
 const router = Router();
 
@@ -20,12 +20,12 @@ router.post("/login", login);
  * POST /api/auth/logout
  * Logout user and clear token cookie
  */
-router.post("/logout", authMiddleware, logout);
+router.post("/logout", requireAuth, logout);
 
 /**
  * GET /api/auth/me
  * Get current logged in user (protected route)
  */
-router.get("/me", authMiddleware, getMe);
+router.get("/me", requireAuth, getMe);
 
 export default router;

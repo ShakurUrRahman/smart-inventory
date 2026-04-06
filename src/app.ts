@@ -10,6 +10,7 @@ import orderRoutes from "./routes/orderRoutes";
 import restockRoutes from "./routes/restockRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import activityRoutes from "./routes/activityRoutes";
+import adminRoutes from "./routes/adminRoutes";
 
 dotenv.config();
 
@@ -75,6 +76,28 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 		if (mongoose.connection.readyState !== 1) {
 			await connectDB();
 		}
+
+		// Force reseed — drops existing data
+		if (req.query.force === "true") {
+			const { default: User } = await import("./models/User");
+			const { Category } = await import("./models/Category");
+			const { default: Product } = await import("./models/Product");
+			const { Order } = await import("./models/Order");
+			const { RestockQueue } = await import("./models/RestockQueue");
+			const { ActivityLog } = await import("./models/ActivityLog");
+
+			await Promise.all([
+				User.deleteMany({}),
+				Category.deleteMany({}),
+				Product.deleteMany({}),
+				Order.deleteMany({}),
+				RestockQueue.deleteMany({}),
+				ActivityLog.deleteMany({}),
+			]);
+
+			console.log("🗑️ All collections cleared");
+		}
+
 		const { seedDatabase } = await import("./utils/seedDatabase");
 		const result = await seedDatabase();
 		res.status(201).json({ success: true, ...result });
@@ -96,6 +119,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/restock", restockRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {

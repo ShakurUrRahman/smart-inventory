@@ -1,8 +1,10 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from "express";
-import { Product } from "../models/Product";
+import Product from "../models/Product";
 import { Category } from "../models/Category";
 import { Order } from "../models/Order";
 import { logActivity } from "../utils/activityLogger";
+import User, { IUser } from "../models/User";
 import { handleRestockCheck } from "../utils/restockHandler";
 
 // Get All Products with Filters & Pagination
@@ -16,10 +18,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
 			limit = 10,
 		} = req.query;
 
-		// Build filter object
+		const user = req.user as IUser;
+
 		const filter: any = {};
 
-		// Search filter (case-insensitive)
+		// ─── Role-based filter ────────────────────────────────────────────────
+		if (user.role === "user") {
+			// User sees only their own products
+			filter.createdBy = user._id;
+		}
+		// admin/manager/super_admin see all products — no filter needed
+
+		// Search filter
 		if (search) {
 			filter.name = { $regex: search, $options: "i" };
 		}
@@ -39,11 +49,9 @@ export const getAllProducts = async (req: Request, res: Response) => {
 		const limitNum = Math.max(1, parseInt(limit as string) || 10);
 		const skip = (pageNum - 1) * limitNum;
 
-		// Get total count for pagination
 		const total = await Product.countDocuments(filter);
 		const totalPages = Math.ceil(total / limitNum);
 
-		// Fetch products with pagination and populate category
 		const products = await Product.find(filter)
 			.populate("category", "name")
 			.skip(skip)
@@ -71,7 +79,8 @@ export const getAllProducts = async (req: Request, res: Response) => {
 export const createProduct = async (req: Request, res: Response) => {
 	try {
 		const { name, category, price, stock, minStockThreshold } = req.body;
-		const userId = req.user?.userId;
+		const user = req.user as IUser;
+		const userId = user._id;
 
 		// Validation
 		if (
@@ -81,10 +90,9 @@ export const createProduct = async (req: Request, res: Response) => {
 			stock === undefined ||
 			!minStockThreshold
 		) {
-			return res.status(400).json({
-				success: false,
-				message: "All fields are required",
-			});
+			return res
+				.status(400)
+				.json({ success: false, message: "All fields are required" });
 		}
 
 		if (typeof price !== "number" || price < 0) {
@@ -108,19 +116,20 @@ export const createProduct = async (req: Request, res: Response) => {
 			});
 		}
 
-		// Verify category exists
 		const categoryExists = await Category.findById(category);
 		if (!categoryExists) {
-			return res.status(400).json({
-				success: false,
-				message: "Category does not exist",
-			});
+			return res
+				.status(400)
+				.json({ success: false, message: "Category does not exist" });
 		}
 
-		// Determine status based on stock
-		const status = stock === 0 ? "Out of Stock" : "Active";
+		const status = stock === 0 ? "Inactive" : "Active";
 
-		// Create product
+		// ─── Set approval based on role ───────────────────────────────────────
+		const isPrivileged = ["admin", "manager", "super_admin"].includes(
+			user.role,
+		);
+
 		const product = await Product.create({
 			name,
 			category,
@@ -129,18 +138,21 @@ export const createProduct = async (req: Request, res: Response) => {
 			minStockThreshold,
 			status,
 			createdBy: userId,
+			approvalStatus: isPrivileged ? "approved" : "pending",
+			...(isPrivileged && {
+				approvedBy: userId,
+				approvedAt: new Date(),
+			}),
 		});
 
-		// ✅ Handle restock queue
 		await handleRestockCheck(product);
 
-		// Log activity
 		await logActivity({
 			action: "Product Created",
 			entityType: "Product",
 			entityId: product._id,
 			userId,
-			description: `Product '${name}' added to inventory`,
+			description: `Product '${name}' added to inventory${!isPrivileged ? " (pending approval)" : ""}`,
 		});
 
 		const populatedProduct = await Product.findById(product._id).populate(
@@ -150,7 +162,9 @@ export const createProduct = async (req: Request, res: Response) => {
 
 		res.status(201).json({
 			success: true,
-			message: "Product created successfully",
+			message: isPrivileged
+				? "Product created successfully"
+				: "Product submitted for approval",
 			data: populatedProduct,
 		});
 	} catch (error: any) {
@@ -193,7 +207,7 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 		const { name, category, price, minStockThreshold } = req.body;
 
 		// Find product
@@ -287,7 +301,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const restockProduct = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 		const { quantity } = req.body;
 
 		// Validate quantity
@@ -350,7 +364,7 @@ export const restockProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		// Check if product exists
 		const product = await Product.findById(id);

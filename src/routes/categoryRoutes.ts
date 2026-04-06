@@ -6,17 +6,19 @@ import {
 	updateCategory,
 	deleteCategory,
 } from "../controllers/categoryController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import {
+	requireAuth,
+	requireCategoryPermission,
+} from "../middleware/rbacMiddleware";
 
 const router = Router();
 
-// All routes require authentication
-router.use(authMiddleware);
+router.use(requireAuth);
 
-router.post("/", createCategory);
 router.get("/", getAllCategories);
 router.get("/:id", getCategoryById);
-router.put("/:id", updateCategory);
-router.delete("/:id", deleteCategory);
+router.post("/", requireCategoryPermission("canCreate"), createCategory);
+router.put("/:id", requireCategoryPermission("canUpdate"), updateCategory);
+router.delete("/:id", requireCategoryPermission("canDelete"), deleteCategory);
 
 export default router;

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { RestockQueue } from "../models/RestockQueue";
-import { Product } from "../models/Product";
+import Product, { IProduct } from "../models/Product";
 import { logActivity } from "../utils/activityLogger";
 
 const populateProduct = {
@@ -58,7 +58,7 @@ export const resolveRestockItem = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 		const { quantity } = req.body;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		if (!quantity || typeof quantity !== "number" || quantity <= 0) {
 			return res.status(400).json({
@@ -139,7 +139,7 @@ export const resolveRestockItem = async (req: Request, res: Response) => {
 export const removeFromQueue = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		const queueItem = await RestockQueue.findByIdAndDelete(id);
 		if (!queueItem) {

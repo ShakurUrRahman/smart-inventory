@@ -1,6 +1,7 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from "express";
 import { Category, ICategory } from "../models/Category";
-import { Product } from "../models/Product";
+import Product from "../models/Product";
 import { logActivity } from "../utils/activityLogger";
 
 // Get All Categories with Product Count
@@ -43,7 +44,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
 export const createCategory = async (req: Request, res: Response) => {
 	try {
 		const { name } = req.body;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		// Validation
 		if (!name || typeof name !== "string") {
@@ -118,7 +119,7 @@ export const createCategory = async (req: Request, res: Response) => {
 export const deleteCategory = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 
 		// Check if category exists
 		const category = await Category.findById(id);
@@ -201,7 +202,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?.userId;
+		const userId = req.user?._id;
 		const { name } = req.body;
 
 		if (name) {
