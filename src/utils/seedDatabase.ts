@@ -1,296 +1,185 @@
-import User from "../models/User";
+import User, { IUser } from "../models/User";
+import Product, { IProduct } from "../models/Product";
 import { Category } from "../models/Category";
-import Product from "../models/Product";
+import { Order } from "../models/Order";
+import bcrypt from "bcryptjs";
+// import { handleRestockCheck } from "./restockHandler";
+
+// Mock or import this function if it exists in your utils
+const handleRestockCheck = async (product: any) => {
+	if (product.stock <= product.minStockThreshold) {
+		console.log(`⚠️  Restock alert for: ${product.name}`);
+	}
+};
 
 export const seedDatabase = async () => {
-	// ─── Skip if already seeded ───────────────────────────────────────────────
-	const existing = await User.findOne({ email: "superadmin@inventory.com" });
-	if (existing) {
-		return {
-			message: "Database already seeded",
-			summary: { skipped: true },
-		};
-	}
+	try {
+		// Check if already seeded
+		const existingSuper = await User.findOne({ role: "super_admin" });
+		if (existingSuper) {
+			console.log("✅ Database already seeded");
+			return;
+		}
 
-	// ─── 1. USERS ─────────────────────────────────────────────────────────────
-	// No need to manually hash — userSchema.pre("save") handles it
+		console.log("🌱 Starting database seed...\n");
 
-	const superAdmin = await User.create({
-		name: "Super Admin",
-		email: "superadmin@inventory.com",
-		passwordHash: "superadmin123", // hook will hash this
-		role: "super_admin",
-		isSuperAdmin: true,
-		isActive: true,
-		categoryPermissions: {
-			canCreate: true,
-			canUpdate: true,
-			canDelete: true,
-		},
-	});
+		// Hash passwords helper
+		const salt = await bcrypt.genSalt(10);
+		const hashPassword = async (password: string) =>
+			bcrypt.hash(password, salt);
 
-	const admin = await User.create({
-		name: "Admin User",
-		email: "admin@inventory.com",
-		passwordHash: "admin123",
-		role: "admin",
-		isSuperAdmin: false,
-		isActive: true,
-		categoryPermissions: {
-			canCreate: true,
-			canUpdate: true,
-			canDelete: true,
-		},
-	});
+		// ─────────────────────────────────────────
+		// 1. CREATE USERS
+		// ─────────────────────────────────────────
 
-	const manager = await User.create({
-		name: "Jane Manager",
-		email: "manager@inventory.com",
-		passwordHash: "manager123",
-		role: "manager",
-		isSuperAdmin: false,
-		isActive: true,
-		categoryPermissions: {
-			canCreate: true,
-			canUpdate: false,
-			canDelete: false,
-		},
-	});
+		const superAdmin = await User.create({
+			name: "Super Admin",
+			email: "superadmin@inventory.com",
+			passwordHash: await hashPassword("superadmin123"),
+			role: "super_admin",
+			isSuperAdmin: true,
+			categoryPermissions: {
+				canCreate: true,
+				canUpdate: true,
+				canDelete: true,
+			},
+			isActive: true,
+		});
 
-	const demoUser = await User.create({
-		name: "Demo User",
-		email: "user@inventory.com",
-		passwordHash: "user123",
-		role: "user",
-		isSuperAdmin: false,
-		isActive: true,
-		categoryPermissions: {
-			canCreate: false,
-			canUpdate: false,
-			canDelete: false,
-		},
-	});
+		const admin = await User.create({
+			name: "Admin User",
+			email: "admin@inventory.com",
+			passwordHash: await hashPassword("admin123"),
+			role: "admin",
+			categoryPermissions: {
+				canCreate: true,
+				canUpdate: true,
+				canDelete: true,
+			},
+			isActive: true,
+		});
 
-	// ─── 2. CATEGORIES ────────────────────────────────────────────────────────
-	const categoryNames = [
-		"Clothing",
-		"Food & Beverage",
-		"Office Supplies",
-		"Sports & Fitness",
-	];
+		const manager = await User.create({
+			name: "Manager User",
+			email: "manager@inventory.com",
+			passwordHash: await hashPassword("manager123"),
+			role: "manager",
+			categoryPermissions: {
+				canCreate: true,
+				canUpdate: true,
+				canDelete: false,
+			},
+			isActive: true,
+		});
 
-	const categories = await Category.insertMany(
-		categoryNames.map((name) => ({
-			name,
-			createdBy: superAdmin._id,
-		})),
-	);
+		const regularUser = await User.create({
+			name: "Regular User",
+			email: "user@inventory.com",
+			passwordHash: await hashPassword("user123"),
+			role: "user",
+			categoryPermissions: {
+				canCreate: false,
+				canUpdate: false,
+				canDelete: false,
+			},
+			isActive: true,
+		});
 
-	const [clothing, food, office, sports] = categories;
+		console.log("👥 Users created (SuperAdmin, Admin, Manager, User)");
 
-	// ─── 3. PRODUCTS ──────────────────────────────────────────────────────────
+		// ─────────────────────────────────────────
+		// 2. CREATE CATEGORIES
+		// ─────────────────────────────────────────
 
-	// 10 approved products
-	await Product.insertMany([
-		// {
-		// 	name: 'MacBook Pro 14"',
-		// 	category: electronics._id,
-		// 	price: 1999.99,
-		// 	stock: 25,
-		// 	minStockThreshold: 5,
-		// 	status: "Active",
-		// 	approvalStatus: "approved",
-		// 	approvedBy: admin._id,
-		// 	approvedAt: new Date(),
-		// 	createdBy: admin._id,
-		// },
-		// {
-		// 	name: "iPhone 15 Pro",
-		// 	category: electronics._id,
-		// 	price: 1199.99,
-		// 	stock: 50,
-		// 	minStockThreshold: 10,
-		// 	status: "Active",
-		// 	approvalStatus: "approved",
-		// 	approvedBy: admin._id,
-		// 	approvedAt: new Date(),
-		// 	createdBy: admin._id,
-		// },
-		// {
-		// 	name: "Sony WH-1000XM5",
-		// 	category: electronics._id,
-		// 	price: 349.99,
-		// 	stock: 80,
-		// 	minStockThreshold: 15,
-		// 	status: "Active",
-		// 	approvalStatus: "approved",
-		// 	approvedBy: admin._id,
-		// 	approvedAt: new Date(),
-		// 	createdBy: admin._id,
-		// },
-		// {
-		// 	name: "Samsung 4K Monitor",
-		// 	category: electronics._id,
-		// 	price: 599.99,
-		// 	stock: 30,
-		// 	minStockThreshold: 5,
-		// 	status: "Active",
-		// 	approvalStatus: "approved",
-		// 	approvedBy: admin._id,
-		// 	approvedAt: new Date(),
-		// 	createdBy: admin._id,
-		// },
-		{
-			name: "Nike Air Max 270",
-			category: clothing._id,
-			price: 149.99,
-			stock: 120,
-			minStockThreshold: 20,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-		{
-			name: "Levi's 501 Jeans",
-			category: clothing._id,
-			price: 89.99,
-			stock: 200,
-			minStockThreshold: 30,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-		{
-			name: "Organic Green Tea",
-			category: food._id,
-			price: 24.99,
-			stock: 500,
-			minStockThreshold: 50,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-		{
-			name: "Ergonomic Office Chair",
-			category: office._id,
-			price: 449.99,
-			stock: 15,
-			minStockThreshold: 3,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-		{
-			name: "Mechanical Keyboard",
-			category: office._id,
-			price: 129.99,
-			stock: 60,
-			minStockThreshold: 10,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-		{
-			name: "Yoga Mat Pro",
-			category: sports._id,
-			price: 79.99,
-			stock: 90,
-			minStockThreshold: 15,
-			status: "Active",
-			approvalStatus: "approved",
-			approvedBy: admin._id,
-			approvedAt: new Date(),
-			createdBy: admin._id,
-		},
-	]);
+		const categories = await Category.insertMany([
+			{ name: "Electronics", createdBy: admin._id },
+			{ name: "Clothing", createdBy: admin._id },
+			{ name: "Food & Beverages", createdBy: manager._id },
+		]);
 
-	// 3 pending products (created by demo user)
-	await Product.insertMany([
-		// {
-		// 	name: "Wireless Earbuds X1",
-		// 	category: electronics._id,
-		// 	price: 79.99,
-		// 	stock: 40,
-		// 	minStockThreshold: 10,
-		// 	status: "Active",
-		// 	approvalStatus: "pending",
-		// 	createdBy: demoUser._id,
-		// },
-		{
-			name: "Running Shorts Elite",
-			category: sports._id,
-			price: 44.99,
-			stock: 75,
-			minStockThreshold: 15,
-			status: "Active",
+		console.log(`📁 Created ${categories.length} categories`);
+
+		// ─────────────────────────────────────────
+		// 3. CREATE PRODUCTS
+		// ─────────────────────────────────────────
+
+		// Approved products from Manager
+		const productData = [];
+		for (let i = 1; i <= 5; i++) {
+			const p = await Product.create({
+				name: `Premium Item ${i}`,
+				description: `High quality item number ${i}`,
+				category: i % 2 === 0 ? categories[0]._id : categories[1]._id,
+				price: 50 + i * 10,
+				stock: 20,
+				minStockThreshold: 5,
+				createdBy: manager._id,
+				approvalStatus: "approved",
+				approvedBy: admin._id,
+				approvedAt: new Date(),
+			});
+			productData.push(p);
+			await handleRestockCheck(p);
+		}
+
+		// Pending products from User
+		await Product.create({
+			name: "USB-C Hub",
+			description: "Pending approval",
+			category: categories[0]._id,
+			price: 49.99,
+			stock: 25,
+			minStockThreshold: 5,
+			createdBy: regularUser._id,
 			approvalStatus: "pending",
-			createdBy: demoUser._id,
-		},
-		{
-			name: "Vitamin C Supplement",
-			category: food._id,
-			price: 19.99,
-			stock: 200,
-			minStockThreshold: 30,
-			status: "Active",
-			approvalStatus: "pending",
-			createdBy: demoUser._id,
-		},
-	]);
+		});
 
-	// 2 rejected products
-	await Product.insertMany([
-		// {
-		// 	name: "Mystery Gadget",
-		// 	category: electronics._id,
-		// 	price: 9.99,
-		// 	stock: 0,
-		// 	minStockThreshold: 5,
-		// 	status: "Inactive",
-		// 	approvalStatus: "rejected",
-		// 	rejectedBy: admin._id,
-		// 	rejectedAt: new Date(),
-		// 	rejectionReason: "Incomplete product information provided.",
-		// 	createdBy: demoUser._id,
-		// },
-		{
-			name: "Unknown Supplement",
-			category: food._id,
-			price: 5.99,
+		// Rejected product
+		await Product.create({
+			name: "Broken Monitor",
+			description: "Defective unit",
+			category: categories[0]._id,
+			price: 199.99,
 			stock: 0,
-			minStockThreshold: 10,
-			status: "Inactive",
+			minStockThreshold: 5,
+			createdBy: regularUser._id,
 			approvalStatus: "rejected",
-			rejectedBy: admin._id,
-			rejectedAt: new Date(),
-			rejectionReason: "Incomplete product information provided.",
-			createdBy: demoUser._id,
-		},
-	]);
+			rejectionReason: "Incomplete specifications",
+		});
 
-	// ─── RESULT ───────────────────────────────────────────────────────────────
-	return {
-		message: "Seeded successfully",
-		credentials: {
-			superAdmin: "superadmin@inventory.com / superadmin123",
-			admin: "admin@inventory.com / admin123",
-			manager: "manager@inventory.com / manager123",
-			user: "user@inventory.com / user123",
-		},
-		summary: {
-			users: 4,
-			categories: 5,
-			products: 15,
-		},
-	};
+		console.log("📦 Products created (Approved, Pending, and Rejected)");
+
+		// ─────────────────────────────────────────
+		// 4. CREATE SAMPLE ORDER
+		// ─────────────────────────────────────────
+
+		const order = await Order.create({
+			orderNumber: `ORD-${Date.now()}`,
+			createdBy: regularUser._id,
+			items: [
+				{
+					product: productData[0]._id,
+					quantity: 1,
+					price: productData[0].price,
+				},
+			],
+			totalAmount: productData[0].price,
+			status: "completed",
+		});
+
+		console.log("📋 Sample order created");
+
+		// ─────────────────────────────────────────
+		// FINAL SUMMARY
+		// ─────────────────────────────────────────
+
+		console.log("\n✅ Database seeding completed successfully!");
+		console.log("------------------------------------------");
+		console.log("Admin: admin@inventory.com / admin123");
+		console.log("User:  user@inventory.com / user123");
+		console.log("------------------------------------------\n");
+	} catch (error: any) {
+		console.error("❌ Seed error:", error.message);
+		throw error;
+	}
 };

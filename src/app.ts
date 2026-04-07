@@ -100,7 +100,10 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 
 		const { seedDatabase } = await import("./utils/seedDatabase");
 		const result = await seedDatabase();
-		res.status(201).json({ success: true, ...result });
+		res.status(201).json({
+			success: true,
+			data: result, // Put the seed data inside a 'data' key
+		});
 	} catch (error: any) {
 		console.error("Seed error:", error);
 		res.status(500).json({

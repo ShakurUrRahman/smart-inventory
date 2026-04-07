@@ -96,12 +96,24 @@ export const resolveRestockItem = async (req: Request, res: Response) => {
 		} else {
 			queueItem.currentStock = product.stock;
 
+			// 1. Calculate the percentage
+			const percentage =
+				(product.stock / product.minStockThreshold) * 100;
+
 			let priority: "High" | "Medium" | "Low" = "Low";
-			if (product.stock === 0) {
+
+			// 2. Define thresholds
+			if (product.stock === 0 || percentage <= 30) {
+				// Critical: Out of stock OR 25% or less of the minimum needed
 				priority = "High";
-			} else if (product.stock <= product.minStockThreshold / 2) {
+			} else if (percentage <= 65) {
+				// Warning: Between 25% and 75% of the minimum
 				priority = "Medium";
+			} else {
+				// Healthy: Above 75% of the minimum
+				priority = "Low";
 			}
+
 			queueItem.priority = priority;
 		}
 

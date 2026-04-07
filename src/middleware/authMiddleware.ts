@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
+// This file is not using, rbacMiddleware cover all middleware functionality
+
 declare global {
 	namespace Express {
 		interface Request {
