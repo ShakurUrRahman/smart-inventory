@@ -65,8 +65,8 @@ export const seedDatabase = async () => {
 			passwordHash: await hashPassword("manager123"),
 			role: "manager",
 			categoryPermissions: {
-				canCreate: true,
-				canUpdate: true,
+				canCreate: false,
+				canUpdate: false,
 				canDelete: false,
 			},
 			isActive: true,
@@ -77,11 +77,6 @@ export const seedDatabase = async () => {
 			email: "user@inventory.com",
 			passwordHash: await hashPassword("user123"),
 			role: "user",
-			categoryPermissions: {
-				canCreate: false,
-				canUpdate: false,
-				canDelete: false,
-			},
 			isActive: true,
 		});
 

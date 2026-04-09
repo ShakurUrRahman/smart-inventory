@@ -209,11 +209,6 @@ export const promoteToAdmin = async (req: Request, res: Response) => {
 			targetUser._id,
 			{
 				role: "admin",
-				categoryPermissions: {
-					canCreate: true,
-					canUpdate: true,
-					canDelete: true,
-				},
 				$push: {
 					roleHistory: {
 						fromRole: "manager",
@@ -340,11 +335,6 @@ export const demoteManagerToUser = async (req: Request, res: Response) => {
 			targetUser._id,
 			{
 				role: "user",
-				categoryPermissions: {
-					canCreate: false,
-					canUpdate: false,
-					canDelete: false,
-				},
 				$push: {
 					roleHistory: {
 						fromRole: "manager",
@@ -389,8 +379,20 @@ export const updateCategoryPermissions = async (
 	try {
 		const targetUser = (req as any).targetUser;
 		const requestingUser = req.user as any;
+
 		const { canCreate, canUpdate, canDelete } = req.body;
 
+		// ─── 1. AUTHORIZATION CHECK ─────────────────────────────
+
+		// Only admin & super_admin can update permissions
+		if (!["admin", "super_admin"].includes(requestingUser.role)) {
+			return res.status(403).json({
+				success: false,
+				message: "Only admin or super admin can update permissions",
+			});
+		}
+
+		// Only managers have category permissions
 		if (targetUser.role !== "manager") {
 			return res.status(400).json({
 				success: false,
@@ -398,33 +400,28 @@ export const updateCategoryPermissions = async (
 			});
 		}
 
-		// Validate — each provided field must be boolean
+		// ─── 2. VALIDATION ─────────────────────────────────────
+
 		const updates: Record<string, boolean> = {};
-		if (canCreate !== undefined) {
-			if (typeof canCreate !== "boolean") {
-				return res.status(400).json({
-					success: false,
-					message: "canCreate must be a boolean",
-				});
+
+		const validateBoolean = (value: any, field: string) => {
+			if (typeof value !== "boolean") {
+				throw new Error(`${field} must be a boolean`);
 			}
+		};
+
+		if (canCreate !== undefined) {
+			validateBoolean(canCreate, "canCreate");
 			updates["categoryPermissions.canCreate"] = canCreate;
 		}
+
 		if (canUpdate !== undefined) {
-			if (typeof canUpdate !== "boolean") {
-				return res.status(400).json({
-					success: false,
-					message: "canUpdate must be a boolean",
-				});
-			}
+			validateBoolean(canUpdate, "canUpdate");
 			updates["categoryPermissions.canUpdate"] = canUpdate;
 		}
+
 		if (canDelete !== undefined) {
-			if (typeof canDelete !== "boolean") {
-				return res.status(400).json({
-					success: false,
-					message: "canDelete must be a boolean",
-				});
-			}
+			validateBoolean(canDelete, "canDelete");
 			updates["categoryPermissions.canDelete"] = canDelete;
 		}
 
@@ -435,30 +432,35 @@ export const updateCategoryPermissions = async (
 			});
 		}
 
+		// ─── 3. UPDATE ─────────────────────────────────────────
+
 		const updated = await User.findByIdAndUpdate(
 			targetUser._id,
 			{ $set: updates },
 			{ new: true, select: "categoryPermissions" },
 		);
 
+		// ─── 4. ACTIVITY LOG ───────────────────────────────────
+
 		await logActivity({
 			action: "Category Permissions Updated",
 			entityType: "User",
 			entityId: targetUser._id,
 			userId: requestingUser._id,
-			description: `Category permissions updated for '${targetUser.name}'`,
+			description: `Category permissions updated for '${targetUser.name}' by ${requestingUser.name}`,
 		});
+
+		// ─── 5. RESPONSE ───────────────────────────────────────
 
 		res.status(200).json({
 			success: true,
 			message: `Permissions updated for ${targetUser.name}`,
-			data: updated?.categoryPermissions,
+			categoryPermissions: updated?.categoryPermissions,
 		});
 	} catch (error: any) {
 		res.status(500).json({
 			success: false,
-			message: "Failed to update permissions",
-			error: error.message,
+			message: error.message || "Failed to update permissions",
 		});
 	}
 };
