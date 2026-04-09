@@ -23,6 +23,17 @@ export const getRestockQueue = async (req: Request, res: Response) => {
 			filter.priority = priority;
 		}
 
+		const allItems = await RestockQueue.find({ isResolved: false });
+
+		// Calculate priority counts
+		const priorityCounts = {
+			All: allItems.length,
+			High: allItems.filter((item) => item.priority === "High").length,
+			Medium: allItems.filter((item) => item.priority === "Medium")
+				.length,
+			Low: allItems.filter((item) => item.priority === "Low").length,
+		};
+
 		const pageNum = Math.max(1, parseInt(page as string) || 1);
 		const limitNum = Math.max(1, parseInt(limit as string) || 10);
 		const skip = (pageNum - 1) * limitNum;
@@ -43,6 +54,7 @@ export const getRestockQueue = async (req: Request, res: Response) => {
 			page: pageNum,
 			totalPages,
 			limit: limitNum,
+			priorityCounts,
 		});
 	} catch (error: any) {
 		res.status(500).json({
