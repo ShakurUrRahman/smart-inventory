@@ -65,6 +65,35 @@ export const getRestockQueue = async (req: Request, res: Response) => {
 	}
 };
 
+// export const getRestockById = async (req: Request, res: Response) => {
+// 	try {
+// 		const { id } = req.params;
+
+// 		const reStock = await RestockQueue.findById(id).populate(
+// 			"category",
+// 			"name",
+// 		);
+
+// 		if (!reStock) {
+// 			return res.status(404).json({
+// 				success: false,
+// 				message: "Restock product not found",
+// 			});
+// 		}
+
+// 		res.status(200).json({
+// 			success: true,
+// 			data: reStock,
+// 		});
+// 	} catch (error: any) {
+// 		res.status(500).json({
+// 			success: false,
+// 			message: "Failed to fetch product",
+// 			error: error.message,
+// 		});
+// 	}
+// };
+
 // Resolve Restock Item (add stock)
 export const resolveRestockItem = async (req: Request, res: Response) => {
 	try {
