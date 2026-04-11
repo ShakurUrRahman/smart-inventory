@@ -3,7 +3,7 @@
 export { Category, type ICategory } from "./Category";
 
 export { Order, type IOrder, type IOrderItem } from "./Order";
-export { RestockQueue, type IRestockQueue } from "./RestockQueue";
+export { type IRestockQueue } from "./RestockQueue";
 export { ActivityLog, type IActivityLog } from "./ActivityLog";
 
 /**

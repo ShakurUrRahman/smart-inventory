@@ -40,7 +40,4 @@ const restockQueueSchema = new Schema<IRestockQueue>(
 	{ timestamps: true },
 );
 
-export const RestockQueue = model<IRestockQueue>(
-	"RestockQueue",
-	restockQueueSchema,
-);
+export default model<IRestockQueue>("RestockQueue", restockQueueSchema);

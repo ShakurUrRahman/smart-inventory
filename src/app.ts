@@ -83,7 +83,8 @@ app.get("/api/seed", async (req: Request, res: Response) => {
 			const { Category } = await import("./models/Category");
 			const { default: Product } = await import("./models/Product");
 			const { Order } = await import("./models/Order");
-			const { RestockQueue } = await import("./models/RestockQueue");
+			const { default: RestockQueue } =
+				await import("./models/RestockQueue");
 			const { ActivityLog } = await import("./models/ActivityLog");
 
 			await Promise.all([

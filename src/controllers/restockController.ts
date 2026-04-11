@@ -1,5 +1,6 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from "express";
-import { RestockQueue } from "../models/RestockQueue";
+import RestockQueue, { IRestockQueue } from "../models/RestockQueue";
 import Product, { IProduct } from "../models/Product";
 import { logActivity } from "../utils/activityLogger";
 
@@ -16,16 +17,31 @@ const populateProduct = {
 export const getRestockQueue = async (req: Request, res: Response) => {
 	try {
 		const { priority = "", page = 1, limit = 10 } = req.query;
+		const userId = req.user?._id;
+		const userRole = req.user?.role;
 
 		const filter: any = { isResolved: false };
 
+		// ✅ Users only see restock items for products they created
+		if (userRole === "user") {
+			const userProducts = await Product.find({ createdBy: userId });
+			const productIds = userProducts.map((p) => p._id);
+			filter.product = { $in: productIds };
+		}
+		// Admins/Managers see ALL restock items
+
+		// Apply priority filter if provided
 		if (priority && priority !== "all") {
 			filter.priority = priority;
 		}
 
-		const allItems = await RestockQueue.find({ isResolved: false });
+		const pageNum = Math.max(1, parseInt(page as string) || 1);
+		const limitNum = Math.max(1, parseInt(limit as string) || 10);
+		const skip = (pageNum - 1) * limitNum;
 
-		// Calculate priority counts
+		// Get ALL items for priority counts
+		const allItems = await RestockQueue.find(filter);
+
 		const priorityCounts = {
 			All: allItems.length,
 			High: allItems.filter((item) => item.priority === "High").length,
@@ -33,10 +49,6 @@ export const getRestockQueue = async (req: Request, res: Response) => {
 				.length,
 			Low: allItems.filter((item) => item.priority === "Low").length,
 		};
-
-		const pageNum = Math.max(1, parseInt(page as string) || 1);
-		const limitNum = Math.max(1, parseInt(limit as string) || 10);
-		const skip = (pageNum - 1) * limitNum;
 
 		const total = await RestockQueue.countDocuments(filter);
 		const totalPages = Math.ceil(total / limitNum);

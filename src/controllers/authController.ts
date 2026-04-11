@@ -142,16 +142,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 			{ expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any },
 		);
 
-		// console.log("✅ JWT generated successfully");
-		// console.log("   Token length:", token.length);
-
 		// Set cookie
-		const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-		// console.log("🔐 Setting cookie...");
-		// console.log("   httpOnly: true");
-		// console.log("   secure:", process.env.NODE_ENV === "production");
-		// console.log("   sameSite: lax");
-		// console.log("   maxAge:", maxAge, "ms");
+		const maxAge = 7 * 24 * 60 * 60 * 1000;
 
 		res.cookie("token", token, {
 			httpOnly: true,
@@ -159,8 +151,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 			sameSite: "lax",
 			maxAge,
 		});
-
-		// console.log("✅ Cookie set in response headers");
 
 		// Log activity
 		await logActivity({
@@ -194,16 +184,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 	}
 };
 
-/**
- * Logout user
- * @route POST /api/auth/logout
- * @param {Request} req - Express request
- * @param {Response} res - Express response
- */
 export const logout = async (req: Request, res: Response): Promise<void> => {
 	try {
-		// Log activity
-		const user = req.user as IUser; // ← cast here
+		const user = (req as any).user;
 
 		if (user?._id) {
 			await logActivity({
@@ -215,7 +198,6 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 			});
 		}
 
-		// Clear cookie
 		res.clearCookie("token", {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
@@ -235,16 +217,9 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 	}
 };
 
-/**
- * Get current logged in user
- * @route GET /api/auth/me
- * @param {Request} req - Express request (should have req.user from requireAuth middleware)
- * @param {Response} res - Express response
- */
-
 export const getMe = async (req: Request, res: Response): Promise<void> => {
 	try {
-		const user = req.user as IUser; // ← cast here
+		const user = (req as any).user;
 
 		if (!user?._id) {
 			res.status(401).json({ success: false, message: "Unauthorized" });

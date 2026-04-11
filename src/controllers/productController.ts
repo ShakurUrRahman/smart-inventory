@@ -14,20 +14,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
 			search = "",
 			category = "",
 			status = "",
+			approvalStatus = "", // ✅ Add this
 			page = 1,
 			limit = 10,
 		} = req.query;
 
 		const user = req.user as IUser;
-
 		const filter: any = {};
 
-		// ─── Role-based filter ────────────────────────────────────────────────
+		// ✅ Role-based filter
 		if (user.role === "user") {
-			// User sees only their own products
-			filter.createdBy = user._id;
+			filter.createdBy = user._id; // Users see ONLY their products
 		}
-		// admin/manager/super_admin see all products — no filter needed
 
 		// Search filter
 		if (search) {
@@ -44,6 +42,11 @@ export const getAllProducts = async (req: Request, res: Response) => {
 			filter.status = status;
 		}
 
+		// ✅ Approval Status filter (new)
+		if (approvalStatus && approvalStatus !== "all") {
+			filter.approvalStatus = approvalStatus;
+		}
+
 		// Pagination
 		const pageNum = Math.max(1, parseInt(page as string) || 1);
 		const limitNum = Math.max(1, parseInt(limit as string) || 10);
@@ -54,6 +57,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
 
 		const products = await Product.find(filter)
 			.populate("category", "name")
+			.populate("createdBy", "name email") // ✅ Show creator info
 			.skip(skip)
 			.limit(limitNum)
 			.sort({ createdAt: -1 });

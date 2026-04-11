@@ -1,4 +1,4 @@
-import { RestockQueue } from "../models/RestockQueue";
+import RestockQueue, { IRestockQueue } from "../models/RestockQueue";
 
 export const handleRestockCheck = async (product: any) => {
 	try {

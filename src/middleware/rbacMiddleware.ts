@@ -1,8 +1,18 @@
+declare global {
+	namespace Express {
+		interface Request {
+			user?: any;
+			targetUser?: any;
+			product?: any;
+		}
+	}
+}
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User, { IUser } from "../models/User";
 import Product, { IProduct } from "../models/Product";
 import { Types } from "mongoose";
+import RestockQueue, { IRestockQueue } from "../models/RestockQueue";
 
 /**
  * MIDDLEWARE 1: requireAuth
@@ -97,52 +107,54 @@ export const requireRole = (...roles: string[]) => {
  * Attaches product to req.product
  */
 export const requireOwnershipOrRole = (allowedRoles: string[]) => {
-	return async (req: Request, res: Response, next: NextFunction) => {
+	return async (req: Request, res: Response, next: Function) => {
 		try {
-			// Ensure user is authenticated
-			if (!req.user) {
-				return res.status(401).json({
-					error: "Unauthorized",
-				});
+			const userId = req.user?._id;
+			const { id: itemId } = req.params;
+			const userRole = req.user?.role;
+
+			let createdBy: any;
+
+			// Try as Product first
+			const product = await Product.findById<IProduct>(itemId); // ← was `id`
+			if (product) {
+				createdBy = product.createdBy;
+			} else {
+				// Try as RestockQueue
+				const restockItem = await RestockQueue.findById(
+					itemId,
+				).populate<{
+					product: IProduct; // ← tell TS what populate returns
+				}>("product");
+
+				if (restockItem) {
+					createdBy = (restockItem.product as any)?.createdBy;
+				}
 			}
 
-			// Read :id from params (product ID)
-			const productId = req.params.id;
-
-			if (!productId || !Types.ObjectId.isValid(productId)) {
-				return res.status(400).json({
-					error: "Invalid product ID",
-				});
-			}
-
-			// Fetch product from DB
-			const product = await Product.findById(productId);
-
-			if (!product) {
+			if (!createdBy) {
 				return res.status(404).json({
-					error: "Product not found",
+					success: false,
+					message: "Item not found",
 				});
 			}
 
-			// Check if user is in allowed roles
-			if (allowedRoles.includes(req.user.role)) {
-				req.product = product;
-				return next();
+			const hasRole = allowedRoles.includes(userRole ?? "");
+			const isOwner = createdBy?.toString() === userId?.toString();
+
+			if (!hasRole && !isOwner) {
+				return res.status(403).json({
+					success: false,
+					message: "You can only manage items you created",
+				});
 			}
 
-			// Check if user is the creator
-			if (product.createdBy.toString() === req.user._id.toString()) {
-				req.product = product;
-				return next();
-			}
-
-			// Neither role nor owner
-			return res.status(403).json({
-				error: "You can only modify your own products",
-			});
+			next();
 		} catch (error: any) {
-			return res.status(403).json({
-				error: "You can only modify your own products",
+			res.status(500).json({
+				success: false,
+				message: "Authorization error",
+				error: error.message,
 			});
 		}
 	};
