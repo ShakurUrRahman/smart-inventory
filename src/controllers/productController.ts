@@ -23,8 +23,11 @@ export const getAllProducts = async (req: Request, res: Response) => {
 		const filter: any = {};
 
 		// ✅ Role-based filter
+
 		if (user.role === "user") {
-			filter.createdBy = user._id; // Users see ONLY their products
+			filter.createdBy = user._id;
+		} else {
+			filter.approvalStatus = "approved"; // ← here, before other filters
 		}
 
 		// Search filter
@@ -211,7 +214,8 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const userId = req.user?._id;
+		const user = (req as any).user;
+		const userId = user?._id;
 		const { name, category, price, minStockThreshold } = req.body;
 
 		// Find product
@@ -267,6 +271,12 @@ export const updateProduct = async (req: Request, res: Response) => {
 
 		// Re-evaluate status
 		product.status = product.stock === 0 ? "Out of Stock" : "Active";
+
+		if (user?.role === "user") {
+			product.approvalStatus = "pending";
+			product.approvedBy = undefined;
+			product.approvedAt = undefined;
+		}
 
 		await product.save();
 
